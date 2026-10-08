@@ -210,7 +210,7 @@ async function pAlumnos() {
   <section class="panel">
     <div class="panel-h">
       <input type="search" placeholder="Buscar alumno…" value="${esc(UI.buscar)}" data-input="buscar" style="max-width:260px">
-      <select data-input="grado" style="max-width:160px"><option value="">Todos los grados</option><option value="1" ${UI.grado === "1" ? "selected" : ""}>1.º grado</option><option value="2" ${UI.grado === "2" ? "selected" : ""}>2.º grado</option></select>
+      <select data-input="grado" style="max-width:160px"><option value="">Todos los grados</option><option value="1" ${UI.grado === "1" ? "selected" : ""}>1.º grado</option><option value="2" ${UI.grado === "2" ? "selected" : ""}>2.º grado</option><option value="3" ${UI.grado === "3" ? "selected" : ""}>3.º grado</option></select>
       <span style="flex:1"></span>
       <button class="btn sec chico" data-act="verClaves">${ic("ojo")}${UI.claves ? "Ocultar claves" : "Mostrar claves"}</button>
     </div>
@@ -286,7 +286,7 @@ async function pAlumno(id, tab = "evolucion") {
         <button class="btn sec" data-act="nuevaClave" data-id="${a.id}">Generar una clave nueva</button></div></section>
       <section class="panel"><div class="panel-h"><h2>Datos del alumno</h2></div><form class="panel-b" data-form="editarAlumno" data-id="${a.id}">
         <div class="f2"><div class="campo"><label>Nombre</label><input type="text" name="nombre" value="${esc(a.nombre)}" maxlength="40" required></div>
-        <div class="campo"><label>Grado</label><select name="grado"><option value="1" ${a.grado === 1 ? "selected" : ""}>1.º grado</option><option value="2" ${a.grado === 2 ? "selected" : ""}>2.º grado</option></select></div></div>
+        <div class="campo"><label>Grado</label><select name="grado"><option value="1" ${a.grado === 1 ? "selected" : ""}>1.º grado</option><option value="2" ${a.grado === 2 ? "selected" : ""}>2.º grado</option><option value="3" ${a.grado === 3 ? "selected" : ""}>3.º grado</option></select></div></div>
         <div class="interruptor" style="padding-top:0"><div class="t"><b>Activo</b><small>Si lo desactivás, no aparece en el juego ni en las estadísticas del grupo, pero se guarda su historial.</small></div>
           <label class="sw"><input type="checkbox" name="activo" ${a.activo ? "checked" : ""}><span></span></label></div>
         <button class="btn" type="submit">Guardar cambios</button></form></section>
@@ -346,7 +346,7 @@ async function pTareaNueva() {
       <div class="campo"><label>Premio al terminar (monedas)</label><input type="number" name="recompensa" min="0" max="200" value="30"></div></div>
     </div></section>
     <section class="panel"><div class="panel-h"><h2>2. ¿Para quién es?</h2></div><div class="panel-b">
-      ${[["todos", "Todo el grupo"], ["grado1", "Solo 1.º grado"], ["grado2", "Solo 2.º grado"], ["elegidos", "Algunos alumnos"]].map(([v, t], i) => `
+      ${[["todos", "Todo el grupo"], ["grado1", "Solo 1.º grado"], ["grado2", "Solo 2.º grado"], ["grado3", "Solo 3.º grado"], ["elegidos", "Algunos alumnos"]].map(([v, t], i) => `
         <label class="check" style="margin-bottom:8px"><input type="radio" name="destino" value="${v}" ${i === 0 ? "checked" : ""} data-act="destino"><span><b>${t}</b></span></label>`).join("")}
       <div id="elegidos" class="hidden" style="margin-top:10px"><div class="check-lista">${activos.map(a => `<label class="check"><input type="checkbox" name="alumno" value="${a.id}" data-act="marcarCheck"><span>${persona(a, 26)}</span></label>`).join("") || `<span class="muted">No hay alumnos activos.</span>`}</div></div>
     </div></section>
@@ -399,6 +399,18 @@ async function pActividades() {
   pintar(shell("actividades", "Actividades", cuerpo));
 }
 
+function itemTexto(tipo, it) {
+  const ops = o => `<span class="muted">(✓ ${esc(o[0])} · ✗ ${o.slice(1).map(esc).join(" · ✗ ")})</span>`;
+  if (tipo === "oraciones") return esc(it.t);
+  if (tipo === "palabras" || tipo === "silabas") return `<b>${esc(it.p)}</b>`;
+  if (tipo === "rimas") return `<b>${esc(it.p)}</b> rima con <b>${esc(it.c.t)}</b> ${it.c.e || ""} <span class="muted">(no riman: ${it.x.map(x => esc(x.t)).join(", ")})</span>`;
+  if (tipo === "completar") return `${esc(it.t).replace("_", "<b>___</b>")} ${ops(it.o)}`;
+  if (tipo === "ortografia") return `<b>${esc(it.p).replace("_", "__")}</b> → <b>${esc(it.p.replace("_", it.o[0]))}</b> ${ops(it.o)}`;
+  if (tipo === "opuestos") return `${it.r === "opuesto" ? "Lo contrario de" : "Parecida a"} <b>${esc(it.p)}</b> ${ops(it.o)}`;
+  if (tipo === "clases") return `<b>${esc(it.p)}</b> → ${esc(CAT.clases[it.c] || "")}${it.t ? `<br><span class="muted">«${esc(it.t)}»</span>` : ""}`;
+  return "";
+}
+
 async function pActividad(id) {
   const a = await api("/api/docente/actividades/" + encodeURIComponent(id));
   const res = i => { const r = a.resultados[i]; return r ? Graficos.pill(r.pct) + ` <span class="muted" style="font-size:12px">${r.n} resp.</span>` : `<span class="muted">sin datos</span>`; };
@@ -411,7 +423,7 @@ async function pActividad(id) {
         : `<b>Ordenar la secuencia:</b><br><span class="muted" style="font-size:13px">${q.items.map((x, k) => `${k + 1}. ${esc(x)}`).join(" · ")}</span>`}</td><td>${temaTag(q.tema)}</td><td>${res(i)}</td></tr>`).join("")}</tbody></table>`;
   } else {
     cuerpoItems = `<table><thead><tr><th>#</th><th>Ítem</th><th>Resultado</th></tr></thead><tbody>${a.items.map((it, i) => `<tr><td class="muted">${i + 1}</td><td><span style="font-size:20px">${it.e || ""}</span>
-      ${a.tipo === "oraciones" ? esc(it.t) : a.tipo === "palabras" ? `<b>${esc(it.p)}</b>` : `<b>${esc(it.p)}</b> rima con <b>${esc(it.c.t)}</b> ${it.c.e || ""} <span class="muted">(no riman: ${it.x.map(x => esc(x.t)).join(", ")})</span>`}</td><td>${res(i)}</td></tr>`).join("")}</tbody></table>`;
+      ${itemTexto(a.tipo, it)}</td><td>${res(i)}</td></tr>`).join("")}</tbody></table>`;
   }
   const cuerpo = `<section class="panel"><div class="panel-h"><h2>${a.e} ${esc(a.titulo)}</h2><span class="tag">${tipoN(a.tipo)}</span><span class="tag">Nivel ${a.nivel}</span><span class="tag">Figurita ${a.sticker || "⭐"}</span></div>
     <div class="panel-b sin"><div class="tabla-wrap">${cuerpoItems}</div></div></section>`;
@@ -424,12 +436,22 @@ const COMPRENSION = () => Object.entries(CAT.temas).filter(([k, t]) => t.area ==
 function nuevoBorrador(tipo) {
   const base = {tipo, titulo: "", e: CAT.tipos[tipo].i, sticker: "⭐", nivel: "1"};
   if (tipo === "cuento") return {...base, texto: "", preguntas: [qVacia("personajes"), qVacia("detalles"), qVacia("emociones")], secuencia: ["", "", "", ""]};
-  if (tipo === "oraciones") return {...base, items: [0, 1, 2].map(() => ({e: "", t: ""}))};
-  if (tipo === "palabras") return {...base, items: [0, 1, 2].map(() => ({e: "", p: ""}))};
-  return {...base, items: [0, 1, 2].map(rVacia)};
+  return {...base, items: [0, 1, 2].map(() => itemVacio(tipo))};
 }
 function qVacia(tema = "personajes") { return {t: "e", tema, p: "", o: ["", "", ""], v: true}; }
 function rVacia() { return {p: "", e: "", c: {t: "", e: ""}, x: [{t: "", e: ""}, {t: "", e: ""}]}; }
+const AYUDA_TIPO = {
+  silabas: "Separá cada palabra con guiones: <b>ma-ri-po-sa</b>. Los chicos arman la palabra tocando las sílabas en orden. Desde 2.º grado aparece además una sílaba de otra palabra para despistar.",
+  completar: "Escribí la oración con un guion bajo <b>_</b> donde va la palabra que falta. Poné la <b>correcta en el primer casillero</b>; el juego mezcla las opciones.",
+  ortografia: "Escribí la palabra con un guion bajo <b>_</b> donde va la letra: <b>ca_a</b>. Poné la <b>letra correcta en el primer casillero</b> (puede ser de hasta 3 letras, como <b>ll</b> o <b>rr</b>).",
+  opuestos: "Elegí si hay que buscar lo contrario o una palabra parecida. Poné la <b>correcta en el primer casillero</b>; el juego mezcla las opciones.",
+  clases: "Los chicos eligen si la palabra <b>nombra algo</b> (sustantivo), <b>dice cómo es</b> (adjetivo) o <b>dice una acción</b> (verbo). Si escribís una oración de ejemplo, la palabra aparece resaltada.",
+};
+function itemVacio(tipo) {
+  return {oraciones: {e: "", t: ""}, palabras: {e: "", p: ""}, silabas: {e: "", p: ""}, rimas: rVacia(),
+          completar: {e: "", t: "", o: ["", "", ""]}, ortografia: {e: "", p: "", o: ["", "", ""]},
+          opuestos: {e: "", p: "", r: "opuesto", o: ["", "", ""]}, clases: {e: "", p: "", c: "s", t: ""}}[tipo];
+}
 
 async function pEditor(tipo, id) {
   if (id) {
@@ -441,7 +463,7 @@ async function pEditor(tipo, id) {
       BORRADOR.secuencia = [...((a.preguntas.find(q => q.t === "o") || {}).items || []), "", "", "", ""].slice(0, 4);
     } else if (a.tipo === "rimas") {
       BORRADOR.items = a.items.map(it => ({...it, x: [...it.x, {t: "", e: ""}, {t: "", e: ""}].slice(0, 2)}));
-    } else BORRADOR.items = a.items.map(it => ({...it}));
+    } else BORRADOR.items = a.items.map(it => ({...itemVacio(a.tipo), ...it, ...(it.o ? {o: [...it.o, "", ""].slice(0, 3)} : {})}));
   } else if (!BORRADOR || BORRADOR.tipo !== tipo || BORRADOR.id) {
     BORRADOR = nuevoBorrador(tipo);
   }
@@ -455,7 +477,7 @@ function dibujarEditor() {
     especifico = `
     <section class="panel"><div class="panel-h"><h2>Texto del cuento</h2></div><div class="panel-b">
       <div class="campo"><textarea data-bind="texto" style="min-height:160px" placeholder="Había una vez…">${esc(b.texto)}</textarea>
-      <small>Para 1.º grado: 3 a 5 oraciones cortas. Para 2.º grado: 5 a 8 oraciones.</small></div></div></section>
+      <small>Para 1.º grado: 3 a 5 oraciones cortas. Para 2.º grado: 5 a 8 oraciones. Para 3.º grado: 8 a 12 oraciones.</small></div></div></section>
     <section class="panel"><div class="panel-h"><h2>Preguntas de comprensión</h2><button type="button" class="btn sec chico" data-act="agregarQ">${ic("mas")}Agregar pregunta</button></div><div class="panel-b">
       <div class="ayuda">Escribí la <b>respuesta correcta en el primer casillero</b>. El juego mezcla las opciones. En 1.º grado se muestran solo 2 opciones (la correcta y la primera incorrecta).</div>
       ${b.preguntas.map((q, i) => `<div class="bloque-item"><div class="cab"><b>Pregunta ${i + 1}</b><button type="button" class="btn fantasma chico" data-act="quitar" data-lista="preguntas" data-i="${i}">Quitar</button></div>
@@ -474,6 +496,20 @@ function dibujarEditor() {
       let campos;
       if (b.tipo === "oraciones") campos = `<div class="campo" style="max-width:110px"><label>Dibujo</label>${inp(`items.${i}.e`, it.e, "🐱", 'maxlength="8"')}</div><div class="campo" style="flex:1"><label>Oración (3 a 10 palabras)</label>${inp(`items.${i}.t`, it.t, "El gato duerme en la cama")}</div>`;
       else if (b.tipo === "palabras") campos = `<div class="campo" style="max-width:110px"><label>Dibujo</label>${inp(`items.${i}.e`, it.e, "☀️", 'maxlength="8"')}</div><div class="campo" style="flex:1"><label>Palabra (solo letras)</label>${inp(`items.${i}.p`, it.p, "sol", 'maxlength="10"')}</div>`;
+      else if (b.tipo === "silabas") campos = `<div class="campo" style="max-width:110px"><label>Dibujo</label>${inp(`items.${i}.e`, it.e, "🦋", 'maxlength="8"')}</div><div class="campo" style="flex:1"><label>Palabra separada en sílabas con guiones</label>${inp(`items.${i}.p`, it.p, "ma-ri-po-sa", 'maxlength="40"')}</div>`;
+      else if (b.tipo === "completar" || b.tipo === "ortografia") {
+        const orto = b.tipo === "ortografia", m = orto ? 'maxlength="3"' : 'maxlength="30"';
+        campos = `<div style="flex:1"><div class="acciones" style="align-items:flex-start"><div class="campo" style="max-width:110px"><label>Dibujo</label>${inp(`items.${i}.e`, it.e, orto ? "🏠" : "🐱", 'maxlength="8"')}</div>
+          <div class="campo" style="flex:1"><label>${orto ? "Palabra con _ donde falta la letra" : "Oración con _ donde falta la palabra"}</label>${inp(`items.${i}.${orto ? "p" : "t"}`, orto ? it.p : it.t, orto ? "ca_a" : "El gato toma _", orto ? 'maxlength="16"' : 'maxlength="140"')}</div></div>
+          <div class="f3"><div class="campo"><label>✓ Correcta</label>${inp(`items.${i}.o.0`, it.o[0], orto ? "s" : "leche", m)}</div><div class="campo"><label>✗ Incorrecta</label>${inp(`items.${i}.o.1`, it.o[1], orto ? "z" : "zapato", m)}</div><div class="campo"><label>✗ Otra (opcional)</label>${inp(`items.${i}.o.2`, it.o[2], "", m)}</div></div></div>`;
+      } else if (b.tipo === "opuestos") campos = `<div style="flex:1"><div class="acciones" style="align-items:flex-start"><div class="campo" style="max-width:110px"><label>Dibujo</label>${inp(`items.${i}.e`, it.e, "🐘", 'maxlength="8"')}</div>
+          <div class="campo" style="flex:1"><label>Palabra</label>${inp(`items.${i}.p`, it.p, "grande", 'maxlength="30"')}</div>
+          <div class="campo" style="flex:1"><label>Hay que buscar…</label><select data-bind="items.${i}.r"><option value="opuesto" ${it.r !== "parecido" ? "selected" : ""}>Lo contrario (antónimo)</option><option value="parecido" ${it.r === "parecido" ? "selected" : ""}>Una parecida (sinónimo)</option></select></div></div>
+          <div class="f3"><div class="campo"><label>✓ Correcta</label>${inp(`items.${i}.o.0`, it.o[0], "chico", 'maxlength="30"')}</div><div class="campo"><label>✗ Incorrecta</label>${inp(`items.${i}.o.1`, it.o[1], "pesado", 'maxlength="30"')}</div><div class="campo"><label>✗ Otra (opcional)</label>${inp(`items.${i}.o.2`, it.o[2], "", 'maxlength="30"')}</div></div></div>`;
+      else if (b.tipo === "clases") campos = `<div style="flex:1"><div class="acciones" style="align-items:flex-start"><div class="campo" style="max-width:110px"><label>Dibujo</label>${inp(`items.${i}.e`, it.e, "🐶", 'maxlength="8"')}</div>
+          <div class="campo" style="flex:1"><label>Palabra</label>${inp(`items.${i}.p`, it.p, "perro", 'maxlength="30"')}</div>
+          <div class="campo" style="flex:1"><label>Clase de palabra</label><select data-bind="items.${i}.c">${Object.entries(CAT.clases).map(([k, t]) => `<option value="${k}" ${it.c === k ? "selected" : ""}>${esc(t)}</option>`).join("")}</select></div></div>
+          <div class="campo"><label>Oración de ejemplo (opcional, debe contener la palabra)</label>${inp(`items.${i}.t`, it.t || "", "El perro ladra fuerte", 'maxlength="140"')}</div></div>`;
       else campos = `<div class="f4" style="flex:1">
         <div class="campo"><label>Palabra</label>${inp(`items.${i}.p`, it.p, "gato")}</div><div class="campo"><label>Dibujo</label>${inp(`items.${i}.e`, it.e, "🐱", 'maxlength="8"')}</div>
         <div class="campo"><label>✓ Rima con</label>${inp(`items.${i}.c.t`, it.c.t, "pato")}</div><div class="campo"><label>Dibujo</label>${inp(`items.${i}.c.e`, it.c.e, "🦆", 'maxlength="8"')}</div>
@@ -481,14 +517,14 @@ function dibujarEditor() {
         <div class="campo"><label>✗ No rima 2</label>${inp(`items.${i}.x.1.t`, it.x[1].t, "sol")}</div><div class="campo"><label>Dibujo</label>${inp(`items.${i}.x.1.e`, it.x[1].e, "", 'maxlength="8"')}</div></div>`;
       return `<div class="bloque-item"><div class="cab"><b>${i + 1}</b><button type="button" class="btn fantasma chico" data-act="quitar" data-lista="items" data-i="${i}">Quitar</button></div><div class="acciones" style="align-items:flex-start">${campos}</div></div>`;
     }).join("");
-    especifico = `<section class="panel"><div class="panel-h"><h2>Contenido</h2><button type="button" class="btn sec chico" data-act="agregarItem">${ic("mas")}Agregar</button></div><div class="panel-b">${filas}</div></section>`;
+    especifico = `<section class="panel"><div class="panel-h"><h2>Contenido</h2><button type="button" class="btn sec chico" data-act="agregarItem">${ic("mas")}Agregar</button></div><div class="panel-b">${AYUDA_TIPO[b.tipo] ? `<div class="ayuda">${AYUDA_TIPO[b.tipo]}</div>` : ""}${filas}</div></section>`;
   }
   const cuerpo = `<form data-form="actividad">
     <section class="panel"><div class="panel-h"><h2>Datos generales</h2><span class="tag">${t.i} ${esc(t.n)}</span></div><div class="panel-b">
       <div class="campo"><label>Título</label>${inp("titulo", b.titulo, "Ej.: La vaca Lola", 'maxlength="60" required')}</div>
       <div class="f3"><div class="campo"><label>Dibujo (emoji)</label>${inp("e", b.e, "📖", 'maxlength="8"')}</div>
       <div class="campo"><label>Figurita del álbum</label>${inp("sticker", b.sticker, "⭐", 'maxlength="8"')}</div>
-      <div class="campo"><label>Nivel</label><select data-bind="nivel"><option value="1" ${b.nivel === "1" ? "selected" : ""}>Nivel 1 (1.º y 2.º grado)</option><option value="2" ${b.nivel === "2" ? "selected" : ""}>Nivel 2 (2.º grado)</option></select></div></div>
+      <div class="campo"><label>Nivel</label><select data-bind="nivel"><option value="1" ${b.nivel === "1" ? "selected" : ""}>Nivel 1 (desde 1.º grado)</option><option value="2" ${b.nivel === "2" ? "selected" : ""}>Nivel 2 (desde 2.º grado)</option><option value="3" ${b.nivel === "3" ? "selected" : ""}>Nivel 3 (3.º grado)</option></select></div></div>
       <small class="muted">Para escribir un emoji en Windows: tecla Windows + punto ( . )</small></div></section>
     ${especifico}
     <div class="error-form" id="err"></div>
@@ -536,6 +572,7 @@ async function pAjustes() {
     <section class="panel"><div class="panel-h"><h2>Cómo se juega</h2></div><div class="panel-b" style="padding-top:4px;padding-bottom:4px">
       ${sw("mayus_1", "Imprenta mayúscula en 1.º grado", "Los chicos de 1.º ven los textos en MAYÚSCULAS.")}
       ${sw("nivel2_para_1", "Actividades de nivel 2 para 1.º grado", "Útil para chicos de 1.º que ya leen con soltura.")}
+      ${sw("nivel3_para_2", "Actividades de nivel 3 para 2.º grado", "Útil para chicos de 2.º que necesitan más desafío.")}
       ${sw("auto_leer", "Leer en voz alta automáticamente", "Cuentos, preguntas y consignas se leen solos al aparecer.")}
       ${sw("voz_lenta", "Voz más lenta", "La lectura en voz alta va más despacio.")}
       <div class="interruptor" style="flex-direction:column;align-items:stretch">
@@ -593,7 +630,7 @@ const A = {
   nuevoAlumno: async () => {
     const r = await modal({titulo: "Agregar alumnos", cuerpo: `
       <div class="campo"><label>Nombres</label><textarea name="nombres" placeholder="Escribí un nombre por línea&#10;Ej.:&#10;Martina G.&#10;Thiago R."></textarea><small>Si hay dos chicos con el mismo nombre, agregá la inicial del apellido.</small></div>
-      <div class="campo"><label>Grado</label><select name="grado"><option value="1">1.º grado</option><option value="2">2.º grado</option></select></div>`,
+      <div class="campo"><label>Grado</label><select name="grado"><option value="1">1.º grado</option><option value="2">2.º grado</option><option value="3">3.º grado</option></select></div>`,
       botones: [{txt: "Cancelar", cls: "sec", valor: null}, {txt: "Agregar", valor: "form"}]});
     if (!r) return;
     const nombres = r.nombres.split("\n").map(s => s.trim()).filter(Boolean);
@@ -634,7 +671,7 @@ const A = {
     if (await llamar(() => api(`/api/docente/actividades/${encodeURIComponent(el.dataset.id)}`, {method: "DELETE"}), "Actividad borrada.")) pActividades();
   },
   agregarQ: () => { BORRADOR.preguntas.push(qVacia("detalles")); dibujarEditor(); },
-  agregarItem: () => { BORRADOR.items.push(BORRADOR.tipo === "rimas" ? rVacia() : BORRADOR.tipo === "oraciones" ? {e: "", t: ""} : {e: "", p: ""}); dibujarEditor(); },
+  agregarItem: () => { BORRADOR.items.push(itemVacio(BORRADOR.tipo)); dibujarEditor(); },
   quitar: el => { BORRADOR[el.dataset.lista].splice(+el.dataset.i, 1); dibujarEditor(); },
   tema: async el => {
     const {cfg} = await api("/api/docente/config");
@@ -726,6 +763,6 @@ document.addEventListener("submit", e => {
 });
 
 (async () => {
-  try { CAT = await api("/api/catalogo"); Avatar.init(CAT.items); await navegar(); }
+  try { CAT = await cargarCatalogo(); Avatar.init(CAT.items); await navegar(); }
   catch (e) { $("#raiz").innerHTML = `<div class="acceso"><div class="caja"><h1>No se pudo abrir el panel</h1><p>${esc(e.message)}</p></div></div>`; }
 })();

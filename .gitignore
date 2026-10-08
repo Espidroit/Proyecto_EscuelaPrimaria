@@ -4,3 +4,6 @@ __pycache__/
 
 # Datos locales (se generan solos al iniciar la app)
 datos/
+
+# Entorno de Python que crea iniciar.bat
+.venv/

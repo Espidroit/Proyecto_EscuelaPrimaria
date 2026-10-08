@@ -52,6 +52,27 @@ TEMAS = {
                   "desc": "Formar palabras letra por letra.",
                   "obj": "Establecer correspondencias entre sonidos y letras (escritura alfabética).",
                   "pista": "Decí la palabra despacito: ¿qué sonido va ahora? 🔤"},
+    "silabas": {"area": "Lengua: oraciones y palabras", "n": "Sílabas", "i": "👏", "kid": "Palmas y sílabas",
+                "desc": "Separar palabras en sílabas y volver a armarlas.",
+                "obj": "Segmentar palabras en sílabas y reconocer la sílaba como unidad (conciencia silábica).",
+                "pista": "Decí la palabra aplaudiendo: cada palmada es una sílaba. 👏"},
+    "completar": {"area": "Lengua: oraciones y palabras", "n": "Completar oraciones", "i": "📌", "kid": "La palabra que falta",
+                  "desc": "Elegir la palabra que le da sentido a la oración.",
+                  "obj": "Seleccionar la palabra adecuada según el sentido y la concordancia de la oración.",
+                  "pista": "Leé la oración entera con cada palabra. ¿Con cuál tiene sentido? 🤔"},
+    # --- Ortografía y gramática ---
+    "sinonimos": {"area": "Lengua: ortografía y gramática", "n": "Sinónimos y antónimos", "i": "🔄", "kid": "Parecidas y opuestas",
+                  "desc": "Encontrar palabras que quieren decir lo mismo o lo contrario.",
+                  "obj": "Reconocer relaciones de significado entre palabras: sinónimos y antónimos.",
+                  "pista": "Pensá qué quiere decir esa palabra. ¿Cuál se parece? ¿Cuál es lo contrario? 🔄"},
+    "ortografia": {"area": "Lengua: ortografía y gramática", "n": "Ortografía", "i": "🖍️", "kid": "¿Con qué letra va?",
+                   "desc": "Completar palabras con la letra correcta (b/v, c/s/z, ll/y, r/rr, g/j, h).",
+                   "obj": "Reconocer la escritura convencional de palabras de uso frecuente.",
+                   "pista": "Pensá cómo la viste escrita en los libros o en los carteles. 📚"},
+    "clases": {"area": "Lengua: ortografía y gramática", "n": "Clases de palabras", "i": "🏷️", "kid": "¿Quién, cómo es o qué hace?",
+               "desc": "Distinguir palabras que nombran, que dicen cómo es algo y que dicen una acción.",
+               "obj": "Reconocer sustantivos, adjetivos y verbos por su función en la oración.",
+               "pista": "¿Esa palabra nombra algo, dice cómo es o dice qué hace? 🏷️"},
 }
 
 TIPOS = {
@@ -59,7 +80,15 @@ TIPOS = {
     "oraciones": {"n": "Ordeno oraciones", "i": "🧱", "tema": "oraciones", "desc": "Ordenar palabras para armar oraciones."},
     "rimas":     {"n": "Busco la rima",    "i": "🎵", "tema": "rimas",     "desc": "Encontrar palabras que riman."},
     "palabras":  {"n": "Armo palabras",    "i": "🔤", "tema": "escritura", "desc": "Formar palabras con letras."},
+    "silabas":   {"n": "Juego de sílabas", "i": "👏", "tema": "silabas",   "desc": "Armar palabras con sílabas."},
+    "completar": {"n": "La palabra que falta", "i": "📌", "tema": "completar", "desc": "Completar oraciones con la palabra que tiene sentido."},
+    "opuestos":  {"n": "Parecidas y opuestas", "i": "🔄", "tema": "sinonimos", "desc": "Encontrar palabras parecidas (sinónimos) y contrarias (antónimos)."},
+    "ortografia": {"n": "¿Con qué letra va?", "i": "🖍️", "tema": "ortografia", "desc": "Completar palabras con la letra correcta."},
+    "clases":    {"n": "¿Quién, cómo es o qué hace?", "i": "🏷️", "tema": "clases", "desc": "Clasificar palabras: sustantivos, adjetivos y verbos."},
 }
+
+# Respuestas del juego «clases» (clases de palabras)
+CLASES = {"s": "🧸 Nombra algo (sustantivo)", "a": "🎨 Dice cómo es (adjetivo)", "v": "🏃 Dice una acción (verbo)"}
 
 # ---------------------------------------------------------------
 # Cuentos
@@ -149,6 +178,17 @@ CUENTOS = [
         {"t": "e", "tema": "inferencia", "p": "¿Qué hacía el ruido en realidad?", "o": ["Una rama que golpeaba la ventana", "Un monstruo", "Un perro que ladraba"]},
         {"t": "e", "tema": "vocabulario", "p": "Nico «juntó coraje». ¿Qué quiere decir?", "o": ["Que se animó a pesar del miedo", "Que se fue a dormir", "Que juntó juguetes"]},
         {"t": "o", "tema": "secuencia", "items": ["👂 Nico escuchó un ruido raro.", "🛏️ Se tapó con la frazada.", "🔦 Prendió la linterna y miró.", "😴 Se durmió tranquilo."]}]),
+    _c("faro", "El faro de Martina", "🌊", "💡", 3,
+       "Martina vivía con su abuelo cerca del mar, en una casita junto al faro. Todas las noches, el abuelo subía la escalera caracol y encendía la gran luz para guiar a los barcos. Una tarde de invierno, el abuelo se torció un tobillo y no podía caminar. Esa noche se largó una tormenta muy fuerte. Martina escuchó a lo lejos la bocina de un barco pesquero. Aunque tenía un poco de miedo, tomó la linterna y subió los ciento veinte escalones. Con las manos temblorosas, giró la llave tal como le había enseñado su abuelo. ¡La luz del faro se encendió! El barco esquivó las rocas y llegó sano y salvo al puerto. A la mañana siguiente, los pescadores le trajeron a Martina una caja llena de caracoles de regalo.",
+       [{"t": "e", "tema": "personajes", "p": "¿Quién encendió el faro la noche de la tormenta?", "o": ["Martina", "El abuelo", "Un pescador"]},
+        {"t": "e", "tema": "lugar", "p": "¿Dónde vivía Martina?", "o": ["Cerca del mar, junto al faro", "En una ciudad muy grande", "En el campo, lejos del mar"]},
+        {"t": "e", "tema": "lugar", "p": "¿En qué época del año pasó la historia?", "o": ["En invierno", "En verano", "En primavera"]},
+        {"t": "vf", "tema": "detalles", "p": "El abuelo no pudo subir porque se había torcido un tobillo.", "v": True},
+        {"t": "e", "tema": "vocabulario", "p": "El barco llegó «sano y salvo». ¿Qué quiere decir?", "o": ["Que llegó sin que le pasara nada malo", "Que llegó muy rápido", "Que llegó lleno de peces"]},
+        {"t": "e", "tema": "emociones", "p": "¿Cómo se sentía Martina cuando subió la escalera?", "o": ["Con un poco de miedo, pero se animó", "Aburrida", "Enojada con su abuelo"]},
+        {"t": "e", "tema": "inferencia", "p": "¿Por qué era importante encender el faro esa noche?", "o": ["Para que el barco no chocara contra las rocas", "Para que el abuelo pudiera leer", "Para secar la ropa"]},
+        {"t": "e", "tema": "inferencia", "p": "¿Por qué los pescadores le hicieron un regalo a Martina?", "o": ["Para agradecerle que los ayudó", "Porque era su cumpleaños", "Porque vendían caracoles"]},
+        {"t": "o", "tema": "secuencia", "items": ["🦶 El abuelo se torció un tobillo.", "⛈️ Empezó una tormenta muy fuerte.", "🔦 Martina subió la escalera del faro.", "💡 La luz del faro se encendió.", "🎁 Los pescadores le trajeron un regalo."]}]),
 ]
 
 # ---------------------------------------------------------------
@@ -191,6 +231,74 @@ JUEGOS = [
     _j("pa-2", "palabras", "Palabras más largas", "🦋", "🦋", 2, [
         {"e": "🐶", "p": "perro"}, {"e": "📚", "p": "libro"}, {"e": "🎈", "p": "globo"},
         {"e": "🍎", "p": "manzana"}, {"e": "🦋", "p": "mariposa"}, {"e": "🐢", "p": "tortuga"}]),
+    _j("or-3", "oraciones", "Oraciones más largas", "🚂", "🚂", 3, [
+        {"e": "🚂", "t": "El tren de carga cruza el puente de madera"}, {"e": "🌧️", "t": "Ayer llovió toda la tarde en el pueblo"},
+        {"e": "🐝", "t": "Las abejas juntan el polen de las flores"}, {"e": "🎪", "t": "El sábado fuimos al circo con mis primos"},
+        {"e": "📮", "t": "Mi abuela me mandó una carta muy larga"}, {"e": "🏔️", "t": "En la montaña hace mucho frío en invierno"}]),
+    # Sílabas: la palabra va separada con guiones
+    _j("si-1", "silabas", "Palmas con sílabas", "👏", "👏", 1, [
+        {"e": "🦆", "p": "pa-to"}, {"e": "🌙", "p": "lu-na"}, {"e": "🐱", "p": "ga-to"},
+        {"e": "🍲", "p": "so-pa"}, {"e": "✋", "p": "ma-no"}, {"e": "⚽", "p": "pe-lo-ta"}]),
+    _j("si-2", "silabas", "Palabras con muchas sílabas", "🐌", "🐌", 2, [
+        {"e": "🦋", "p": "ma-ri-po-sa"}, {"e": "🍅", "p": "to-ma-te"}, {"e": "🐌", "p": "ca-ra-col"},
+        {"e": "🦒", "p": "ji-ra-fa"}, {"e": "🍦", "p": "he-la-do"}, {"e": "🚲", "p": "bi-ci-cle-ta"}]),
+    # La palabra que falta: «_» marca el hueco y la primera opción es la correcta
+    _j("co-1", "completar", "¿Qué palabra falta?", "📌", "🐦", 1, [
+        {"e": "🐱", "t": "El gato toma _", "o": ["leche", "zapato", "silla"]},
+        {"e": "🐦", "t": "El pájaro _ en el árbol", "o": ["canta", "mesa", "azul"]},
+        {"e": "🌙", "t": "De noche sale la _", "o": ["luna", "pelota", "sopa"]},
+        {"e": "🍎", "t": "La manzana es _", "o": ["roja", "corre", "mesa"]},
+        {"e": "🐟", "t": "Los peces viven en el _", "o": ["agua", "cielo", "horno"]},
+        {"e": "🎂", "t": "Hoy es mi _ y soplo las velitas", "o": ["cumpleaños", "zapato", "lápiz"]}]),
+    _j("co-2", "completar", "Oraciones con sentido", "🧠", "🌻", 2, [
+        {"e": "🐶", "t": "Los perros _ en el patio", "o": ["juegan", "juega", "jugamos"]},
+        {"e": "🧥", "t": "Ana se puso una campera _", "o": ["roja", "rojos", "rojas"]},
+        {"e": "☔", "t": "Llevé el paraguas porque _", "o": ["llovía", "tenía hambre", "me gusta el pan"]},
+        {"e": "🧊", "t": "El hielo es muy _", "o": ["frío", "caliente", "alto"]},
+        {"e": "🌻", "t": "Las plantas necesitan agua y _", "o": ["sol", "zapatos", "tijeras"]},
+        {"e": "📚", "t": "Mañana _ a la biblioteca", "o": ["vamos", "fuimos", "íbamos"]}]),
+    # Parecidas y opuestas: r = "opuesto" o "parecido"; la primera opción es la correcta
+    _j("op-1", "opuestos", "Palabras opuestas", "🔄", "☯️", 2, [
+        {"e": "🐘", "p": "grande", "r": "opuesto", "o": ["chico", "pesado", "gris"]},
+        {"e": "☀️", "p": "día", "r": "opuesto", "o": ["noche", "sol", "mañana"]},
+        {"e": "🧊", "p": "frío", "r": "opuesto", "o": ["caliente", "hielo", "blanco"]},
+        {"e": "🦒", "p": "alto", "r": "opuesto", "o": ["bajo", "largo", "flaco"]},
+        {"e": "🚪", "p": "abierto", "r": "opuesto", "o": ["cerrado", "puerta", "grande"]},
+        {"e": "😀", "p": "feliz", "r": "opuesto", "o": ["triste", "contento", "bueno"]}]),
+    _j("op-2", "opuestos", "Parecidas y opuestas", "🪞", "🪞", 3, [
+        {"e": "😊", "p": "contento", "r": "parecido", "o": ["alegre", "triste", "cansado"]},
+        {"e": "🐇", "p": "rápido", "r": "opuesto", "o": ["lento", "veloz", "corto"]},
+        {"e": "🌸", "p": "lindo", "r": "parecido", "o": ["bonito", "feo", "chico"]},
+        {"e": "🏁", "p": "empezar", "r": "opuesto", "o": ["terminar", "comenzar", "correr"]},
+        {"e": "🗣️", "p": "hablar", "r": "parecido", "o": ["conversar", "callar", "mirar"]},
+        {"e": "🍯", "p": "lleno", "r": "opuesto", "o": ["vacío", "completo", "pesado"]}]),
+    # Ortografía: «_» marca la letra que falta y la primera opción es la correcta
+    _j("ot-1", "ortografia", "Letras que suenan igual", "🖍️", "🖍️", 2, [
+        {"e": "🐄", "p": "_aca", "o": ["v", "b"]}, {"e": "⛵", "p": "_arco", "o": ["b", "v"]},
+        {"e": "🏠", "p": "ca_a", "o": ["s", "z"]}, {"e": "👞", "p": "_apato", "o": ["z", "s"]},
+        {"e": "🐶", "p": "pe_o", "o": ["rr", "r"]}, {"e": "🔑", "p": "_ave", "o": ["ll", "y"]},
+        {"e": "🦒", "p": "_irafa", "o": ["j", "g"]}, {"e": "🧊", "p": "_ielo", "o": ["h", "y"]}]),
+    _j("ot-2", "ortografia", "Palabras difíciles", "📝", "🦉", 3, [
+        {"e": "🐴", "p": "ca_allo", "o": ["b", "v"]}, {"e": "☁️", "p": "nu_e", "o": ["b", "v"]},
+        {"e": "🥛", "p": "_aso", "o": ["v", "b"]}, {"e": "☕", "p": "ta_a", "o": ["z", "s"]},
+        {"e": "⭐", "p": "estre_a", "o": ["ll", "y"]}, {"e": "🤡", "p": "pa_aso", "o": ["y", "ll"]},
+        {"e": "🌻", "p": "_irasol", "o": ["g", "j"]}, {"e": "✏️", "p": "lápi_", "o": ["z", "s"]}]),
+    # Clases de palabras: c = "s" (sustantivo), "a" (adjetivo) o "v" (verbo); t = oración de ejemplo (opcional)
+    _j("cl-1", "clases", "Palabras en oraciones", "🏷️", "🏷️", 3, [
+        {"e": "🐶", "p": "perro", "c": "s", "t": "El perro ladra fuerte"},
+        {"e": "🐸", "p": "salta", "c": "v", "t": "La rana salta muy alto"},
+        {"e": "🌹", "p": "roja", "c": "a", "t": "Tengo una rosa roja"},
+        {"e": "🏫", "p": "escuela", "c": "s", "t": "Voy a la escuela todos los días"},
+        {"e": "😴", "p": "duerme", "c": "v", "t": "El bebé duerme en la cuna"},
+        {"e": "🐘", "p": "enorme", "c": "a", "t": "El elefante es enorme"},
+        {"e": "🍰", "p": "torta", "c": "s", "t": "Mamá hizo una torta de chocolate"},
+        {"e": "✍️", "p": "escribe", "c": "v", "t": "Sofía escribe una carta"},
+        {"e": "🧸", "p": "suave", "c": "a", "t": "Mi oso de peluche es suave"}]),
+    _j("cl-2", "clases", "Clasifico palabras", "🗂️", "🗂️", 3, [
+        {"e": "🍎", "p": "manzana", "c": "s"}, {"e": "🏃", "p": "correr", "c": "v"},
+        {"e": "😊", "p": "alegre", "c": "a"}, {"e": "⚽", "p": "pelota", "c": "s"},
+        {"e": "🎨", "p": "pintar", "c": "v"}, {"e": "🐢", "p": "lenta", "c": "a"},
+        {"e": "🍽️", "p": "comer", "c": "v"}, {"e": "🌈", "p": "colorido", "c": "a"}]),
 ]
 
 ACTIVIDADES_BASE = CUENTOS + JUEGOS
@@ -231,6 +339,9 @@ MEDALLAS = [
         ("vocabulario", "Coleccionista de palabras", "📖"), ("emociones", "Lector de corazones", "💖"),
         ("inferencia", "Gran pensador", "💡"), ("oraciones", "Constructor de oraciones", "🧱"),
         ("rimas", "Poeta de la isla", "🎵"), ("escritura", "Escritor estrella", "✏️"),
+        ("silabas", "Rey de las sílabas", "👏"), ("completar", "Detective de oraciones", "📌"),
+        ("sinonimos", "Mago de las palabras", "🔄"), ("ortografia", "Guardián de la ortografía", "🖍️"),
+        ("clases", "Clasificador experto", "🏷️"),
     ]
 ]
 MEDALLAS_POR_ID = {m["id"]: m for m in MEDALLAS}

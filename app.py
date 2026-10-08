@@ -143,8 +143,16 @@ def tema_juego_activo(act, cfg):
     return act["tipo"] == "cuento" or C.TIPOS[act["tipo"]]["tema"] not in cfg["temas_off"]
 
 
+def grado_valido(v):
+    return int(v) if str(v) in ("2", "3") else 1
+
+
 def niveles_para(grado, cfg):
-    return (1,) if grado == 1 and not cfg["nivel2_para_1"] else (1, 2)
+    if grado == 1:
+        return (1, 2) if cfg["nivel2_para_1"] else (1,)
+    if grado == 2:
+        return (1, 2, 3) if cfg["nivel3_para_2"] else (1, 2)
+    return (1, 2, 3)
 
 
 def visibles_para(con, alumno, cfg):
@@ -171,6 +179,16 @@ def texto_item(act, idx):
             return f"Ordenar: «{it['t']}»"
         if act["tipo"] == "rimas":
             return f"¿Qué rima con «{it['p']}»?"
+        if act["tipo"] == "silabas":
+            return f"Armar con sílabas «{it['p']}»"
+        if act["tipo"] == "completar":
+            return f"Completar: «{it['t'].replace('_', '___')}»"
+        if act["tipo"] == "opuestos":
+            return f"{'Lo contrario de' if it['r'] == 'opuesto' else 'Parecida a'} «{it['p']}»"
+        if act["tipo"] == "ortografia":
+            return f"¿Qué letra falta? «{it['p'].replace('_', '__')}»"
+        if act["tipo"] == "clases":
+            return f"¿Qué clase de palabra es «{it['p']}»?"
         return f"Escribir «{it['p']}»"
     except (IndexError, KeyError):
         return "(ítem modificado)"
@@ -190,7 +208,7 @@ def resumen_actividad(act):
 def asignados(con, tarea):
     if tarea["destino"] == "todos":
         q = con.execute("SELECT id FROM alumnos WHERE activo=1")
-    elif tarea["destino"] in ("grado1", "grado2"):
+    elif tarea["destino"] in ("grado1", "grado2", "grado3"):
         q = con.execute("SELECT id FROM alumnos WHERE activo=1 AND grado=?", (int(tarea["destino"][-1]),))
     else:
         q = con.execute("SELECT a.id FROM tarea_alumnos ta JOIN alumnos a ON a.id=ta.alumno_id "
@@ -328,7 +346,7 @@ def api_ingreso():
 @app.get("/api/catalogo")
 def api_catalogo():
     return jsonify({"items": C.CATALOGO, "categorias": C.CATEGORIAS_AVATAR, "temas": C.TEMAS,
-                    "tipos": C.TIPOS, "medallas": C.MEDALLAS, "niveles": C.NIVELES})
+                    "tipos": C.TIPOS, "clases": C.CLASES, "orden": {"tipos": list(C.TIPOS), "clases": list(C.CLASES)}, "medallas": C.MEDALLAS, "niveles": C.NIVELES})
 
 
 # =================================================================
@@ -799,7 +817,7 @@ def api_docente_alumno_crear():
     d = cuerpo()
     nombres = d.get("nombres") if isinstance(d.get("nombres"), list) else [d.get("nombre")]
     nombres = [texto(n, 40) for n in nombres if texto(n, 40)]
-    grado = 2 if str(d.get("grado")) == "2" else 1
+    grado = grado_valido(d.get("grado"))
     if not nombres:
         return error("Escribí el nombre del alumno.")
     if len(nombres) > 60:
@@ -836,7 +854,7 @@ def api_docente_alumno_editar(aid):
     if con.execute("SELECT 1 FROM alumnos WHERE lower(nombre)=lower(?) AND id<>?", (nombre, aid)).fetchone():
         con.close()
         return error("Ya existe otro alumno con ese nombre.")
-    grado = 2 if str(d.get("grado", a["grado"])) == "2" else 1
+    grado = grado_valido(d.get("grado", a["grado"]))
     activo = 1 if d.get("activo", bool(a["activo"])) else 0
     con.execute("UPDATE alumnos SET nombre=?, grado=?, activo=? WHERE id=?", (nombre, grado, activo, aid))
     con.commit()
@@ -949,7 +967,7 @@ def api_docente_obs_borrar(oid):
 # =================================================================
 # API docente: tareas
 # =================================================================
-DESTINOS = {"todos": "Todo el grupo", "grado1": "1.º grado", "grado2": "2.º grado", "elegidos": "Alumnos elegidos"}
+DESTINOS = {"todos": "Todo el grupo", "grado1": "1.º grado", "grado2": "2.º grado", "grado3": "3.º grado", "elegidos": "Alumnos elegidos"}
 
 
 @app.get("/api/docente/tareas")
@@ -1098,6 +1116,20 @@ def _s(v, n=120):
     return texto(v, n)
 
 
+def opciones(it, n):
+    """Opciones de un ítem de elegir: la primera es la correcta; sin vacías ni repetidas."""
+    o = it.get("o")
+    if not isinstance(o, list) or not o or not _s(o[0], n):
+        return []
+    vistas, out = set(), []
+    for x in o:
+        x = _s(x, n)
+        if x and x.lower() not in vistas:
+            vistas.add(x.lower())
+            out.append(x)
+    return out[:3]
+
+
 def validar_actividad(d):
     """Devuelve (tipo, datos) o lanza ValueError con un mensaje claro."""
     tipo = d.get("tipo")
@@ -1107,7 +1139,7 @@ def validar_actividad(d):
     if not titulo:
         raise ValueError("Falta el título.")
     datos = {"titulo": titulo, "e": _s(d.get("e"), 8) or C.TIPOS[tipo]["i"], "sticker": _s(d.get("sticker"), 8) or "⭐",
-             "nivel": 2 if str(d.get("nivel")) == "2" else 1}
+             "nivel": int(d.get("nivel")) if str(d.get("nivel")) in ("2", "3") else 1}
     comprension = [k for k, v in C.TEMAS.items() if v["area"] == "Comprensión lectora"]
     if tipo == "cuento":
         txt = re.sub(r"\s+", " ", _s(d.get("texto"), 2500))
@@ -1155,10 +1187,41 @@ def validar_actividad(d):
             x = [{"t": _s(o.get("t"), 20).lower(), "e": _s(o.get("e"), 8)} for o in it.get("x") or [] if isinstance(o, dict) and _s(o.get("t"))]
             if p and c and x:
                 items.append({"p": p, "e": _s(it.get("e"), 8), "c": {"t": c, "e": _s((it.get("c") or {}).get("e"), 8)}, "x": x[:2]})
+        elif tipo == "silabas":
+            p = re.sub(r"\s*-\s*", "-", _s(it.get("p"), 40).lower())
+            if re.fullmatch(r"[a-zñáéíóúü]{1,5}(-[a-zñáéíóúü]{1,5}){1,4}", p):
+                items.append({"e": _s(it.get("e"), 8) or "👏", "p": p})
+        elif tipo == "ortografia":
+            p = _s(it.get("p"), 16).lower()
+            o = [x.lower() for x in opciones(it, 3)]
+            if re.fullmatch(r"[a-zñáéíóúü]*_[a-zñáéíóúü]*", p) and len(p) >= 3 and len(o) >= 2 \
+                    and all(re.fullmatch(r"[a-zñáéíóúü]{1,3}", x) for x in o):
+                items.append({"e": _s(it.get("e"), 8) or "🖍️", "p": p, "o": o})
+        elif tipo == "completar":
+            t = re.sub(r"_+", "_", re.sub(r"\s+", " ", _s(it.get("t"), 140))).strip(" .")
+            o = opciones(it, 30)
+            if t.count("_") == 1 and len(t) >= 6 and len(o) >= 2:
+                items.append({"e": _s(it.get("e"), 8) or "📌", "t": t, "o": o})
+        elif tipo == "opuestos":
+            p = _s(it.get("p"), 30).lower()
+            o = opciones(it, 30)
+            if p and len(o) >= 2:
+                items.append({"e": _s(it.get("e"), 8) or "🔄", "p": p,
+                              "r": "parecido" if it.get("r") == "parecido" else "opuesto", "o": o})
+        elif tipo == "clases":
+            p = _s(it.get("p"), 30)
+            t = re.sub(r"\s+", " ", _s(it.get("t"), 140)).strip(" .")
+            if p and it.get("c") in C.CLASES:
+                items.append({"e": _s(it.get("e"), 8) or "🏷️", "p": p, "c": it["c"], **({"t": t} if t else {})})
     if len(items) < 3:
         raise ValueError({"oraciones": "Escribí al menos 3 oraciones (de 3 a 10 palabras cada una).",
                           "palabras": "Escribí al menos 3 palabras (solo letras, de 2 a 10 letras).",
-                          "rimas": "Completá al menos 3 rimas con la palabra, la que rima y una que no rima."}[tipo])
+                          "rimas": "Completá al menos 3 rimas con la palabra, la que rima y una que no rima.",
+                          "silabas": "Escribí al menos 3 palabras separadas en sílabas con guiones (ej.: ma-ri-po-sa).",
+                          "ortografia": "Completá al menos 3 palabras con un _ donde va la letra, la letra correcta y al menos una incorrecta.",
+                          "completar": "Completá al menos 3 oraciones con un _ en el hueco, la palabra correcta y al menos una incorrecta.",
+                          "opuestos": "Completá al menos 3 palabras con la respuesta correcta y al menos una incorrecta.",
+                          "clases": "Completá al menos 3 palabras eligiendo su clase."}[tipo])
     datos["items"] = items[:12]
     return tipo, datos
 
@@ -1248,7 +1311,7 @@ def api_docente_config():
 def api_docente_config_guardar():
     d = cuerpo()
     cambios = {}
-    for k in ("mayus_1", "nivel2_para_1", "auto_leer", "voz_lenta", "sonido", "progresivo", "registro_abierto"):
+    for k in ("mayus_1", "nivel2_para_1", "nivel3_para_2", "auto_leer", "voz_lenta", "sonido", "progresivo", "registro_abierto"):
         if k in d:
             cambios[k] = bool(d[k])
     if "voz" in d:

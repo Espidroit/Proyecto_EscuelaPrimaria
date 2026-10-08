@@ -17,7 +17,13 @@ const ZONA_INFO = {
   oraciones: {cls: "g-oraciones", txt: "Armá oraciones"},
   rimas:     {cls: "g-rimas",     txt: "Escuchá y encontrá"},
   palabras:  {cls: "g-palabras",  txt: "Escribí con letras"},
+  silabas:   {cls: "g-silabas",   txt: "Armá con sílabas"},
+  completar: {cls: "g-completar", txt: "Completá la oración"},
+  opuestos:  {cls: "g-opuestos",  txt: "Parecidas y contrarias"},
+  ortografia: {cls: "g-ortografia", txt: "Elegí la letra"},
+  clases:    {cls: "g-clases",    txt: "Nombra, cómo es, qué hace"},
 };
+const JUEGOS_ELEGIR = ["completar", "opuestos", "ortografia", "clases"];
 
 /* ---------------- Voz, sonido y festejos ---------------- */
 function callar() { Voz.callar(); $$(".frase.leyendo").forEach(f => f.classList.remove("leyendo")); }
@@ -200,6 +206,21 @@ function prepararJuego(act, tarea) {
     items = act.items.map(it => { const pal = it.t.split(" "); return {...it, tema: "oraciones", pal, pool: mezclar(pal.map((w, i) => ({w, i})))}; });
   } else if (act.tipo === "rimas") {
     items = act.items.map(it => ({...it, tema: "rimas", ops: mezclar([{...it.c, ok: true}, ...it.x.slice(0, g1 ? 1 : 2).map(x => ({...x, ok: false}))])}));
+  } else if (act.tipo === "silabas") {
+    const todas = [...new Set(act.items.flatMap(it => it.p.split("-")))];
+    items = act.items.map(it => {
+      const sil = it.p.split("-");
+      const extra = g1 ? [] : mezclar(todas.filter(s => !sil.includes(s))).slice(0, 1).map(s => ({s, i: -1}));
+      return {...it, tema: "silabas", sil, palabra: sil.join(""), pool: mezclar([...sil.map((s, i) => ({s, i})), ...extra])};
+    });
+  } else if (JUEGOS_ELEGIR.includes(act.tipo)) {
+    const tema = CAT.tipos[act.tipo].tema;
+    items = act.items.map(it => {
+      if (act.tipo === "clases") return {...it, tema, ops: Object.entries(CAT.clases).map(([k, t]) => ({t, ok: k === it.c}))};
+      const ops = mezclar((g1 ? it.o.slice(0, 2) : it.o).map((t, i) => ({t, ok: i === 0})));
+      const resp = act.tipo === "ortografia" ? it.p.replace("_", it.o[0]) : act.tipo === "completar" ? it.t.replace("_", it.o[0]) : it.o[0];
+      return {...it, tema, ops, resp};
+    });
   } else {
     items = act.items.map(it => ({...it, tema: "escritura", pool: mezclar(it.p.split("").map((l, i) => ({l, i})))}));
   }
@@ -236,6 +257,11 @@ function leerTodo() {
   sig();
 }
 
+function conHueco(t) { return t.split("_").map(esc).join(`<span class="hueco" id="hueco">?</span>`); }
+function resaltar(t, p) {
+  const i = t.toLowerCase().indexOf(p.toLowerCase());
+  return i < 0 ? esc(t) : esc(t.slice(0, i)) + `<mark class="marca">${esc(t.slice(i, i + p.length))}</mark>` + esc(t.slice(i + p.length));
+}
 function etiquetasOrden(n) {
   return Array.from({length: n}, (_, i) => i === 0 ? "1️⃣ Principio" : i === n - 1 ? `${n}️⃣ Final` : `${i + 1}️⃣ Después`);
 }
@@ -267,6 +293,28 @@ function vJugar() {
     cuerpo = `<div class="pic">${q.e}</div><div class="palabra-grande kid">${esc(q.p)}</div>
       <p class="q kid center">¿Qué palabra rima con <u>${esc(q.p)}</u>? ${parlante}</p>
       <div class="opts" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr))">${q.ops.map((o, k) => `<button class="opt kid" style="text-align:center" data-act="rima" data-k="${k}"><span class="big">${o.e}</span>${esc(o.t)}</button>`).join("")}</div>`;
+  } else if (J.tipo === "silabas") {
+    cuerpo = `<div class="pic">${q.e}</div><p class="q kid center">Tocá las sílabas en orden para armar la palabra. ${parlante}</p>
+      <div class="casillas">${q.sil.map((s, k) => `<div class="casilla sil ${k < J.pos ? "f" : ""}" id="cs${k}">${k < J.pos ? esc(s) : ""}</div>`).join("")}</div>
+      <div class="fichas">${q.pool.map((o, k) => `<button class="letra sil" data-act="silaba" data-k="${k}">${esc(o.s)}</button>`).join("")}</div>`;
+  } else if (JUEGOS_ELEGIR.includes(J.tipo)) {
+    const opts = `<div class="opts" style="grid-template-columns:repeat(auto-fit,minmax(${J.tipo === "ortografia" ? 110 : 170}px,1fr))">${q.ops.map((o, k) =>
+      `<button class="opt kid ${J.tipo === "ortografia" ? "letra-op" : ""}" style="text-align:center" data-act="elegir" data-k="${k}">${esc(o.t)}</button>`).join("")}</div>`;
+    if (J.tipo === "ortografia") {
+      cuerpo = `<div class="pic">${q.e}</div><div class="palabra-grande kid">${conHueco(q.p)}</div>
+        <p class="q kid center">¿Qué letra falta? ${parlante}</p>${opts}`;
+    } else if (J.tipo === "completar") {
+      cuerpo = `<div class="pic">${q.e}</div><p class="q kid center oracion">${conHueco(q.t)}.</p>
+        <p class="q kid center">¿Qué palabra falta? ${parlante}</p>${opts}`;
+    } else if (J.tipo === "opuestos") {
+      cuerpo = `<div class="pic">${q.e}</div><div class="palabra-grande kid">${esc(q.p)}</div>
+        <p class="q kid center">${q.r === "opuesto" ? `¿Qué palabra es <u>lo contrario</u> de «${esc(q.p)}»?` : `¿Qué palabra quiere decir <u>casi lo mismo</u> que «${esc(q.p)}»?`} ${parlante}</p>${opts}`;
+    } else {
+      cuerpo = `<div class="pic">${q.e}</div>
+        ${q.t ? `<p class="q kid center oracion">${resaltar(q.t, q.p)}.</p>` : `<div class="palabra-grande kid">${esc(q.p)}</div>`}
+        <p class="q kid center">La palabra <b>«${esc(q.p)}»</b>, ¿nombra algo, dice cómo es o dice una acción? ${parlante}</p>
+        <div class="opts">${q.ops.map((o, k) => `<button class="opt kid" style="text-align:center" data-act="elegir" data-k="${k}">${esc(o.t)}</button>`).join("")}</div>`;
+    }
   } else {
     cuerpo = `<div class="pic">${q.e}</div><p class="q kid center">Tocá las letras en orden para escribir la palabra. ${parlante}</p>
       <div class="casillas">${q.p.split("").map((_, k) => `<div class="casilla ${k < J.pos ? "f" : ""}" id="cs${k}">${k < J.pos ? esc(q.p[k]) : ""}</div>`).join("")}</div>
@@ -290,6 +338,11 @@ function leerConsigna() {
     else decir("¿En qué orden pasaron las cosas? Tocá lo que pasó primero.");
   } else if (J.tipo === "oraciones") decir(q.t);
   else if (J.tipo === "rimas") decir("¿Qué palabra rima con " + q.p + "? " + q.ops.map(o => o.t).join(", "));
+  else if (J.tipo === "silabas") decir(q.sil.join(", ") + ". " + q.palabra);
+  else if (J.tipo === "ortografia") decir("¿Qué letra falta en la palabra " + q.resp + "? ¿" + q.ops.map(o => o.t).join(" o ") + "?");
+  else if (J.tipo === "completar") decir(q.t.replace("_", "...") + ". ¿Qué palabra falta? " + q.ops.map(o => o.t).join(", "));
+  else if (J.tipo === "opuestos") decir((q.r === "opuesto" ? "¿Qué palabra es lo contrario de " : "¿Qué palabra quiere decir casi lo mismo que ") + q.p + "? " + q.ops.map(o => o.t).join(", "));
+  else if (J.tipo === "clases") decir((q.t ? q.t + ". " : "") + "La palabra " + q.p + ", ¿nombra algo, dice cómo es o dice una acción?");
   else decir(q.p);
 }
 function marcar(ok) {
@@ -301,6 +354,7 @@ function marcar(ok) {
     sonar("ok"); $("#msg").textContent = primer ? azar(ELOGIOS) : "¡Bien! Lo lograste 👍";
     if (primer) confeti(12);
     if (J.tipo === "oraciones") decir(q.t); if (J.tipo === "palabras") decir(q.p);
+    if (J.tipo === "silabas") decir(q.palabra); if (q.resp) decir(q.resp);
     setTimeout(() => {
       J.i++; J.err = 0; J.bloq = false; J.pos = 0; J.puestos = []; J.leida = false;
       if (J.i < J.items.length) ir("jugar"); else enviar();
@@ -474,7 +528,8 @@ const A = {
   mirar: () => $("#mirar").classList.toggle("hidden"),
   elegir: el => {
     if (J.bloq || el.classList.contains("no")) return;
-    const o = J.items[J.i].ops[+el.dataset.k];
+    const o = J.items[J.i].ops[+el.dataset.k], h = $("#hueco");
+    if (o.ok && h) { h.textContent = o.t; h.classList.add("f", "pop"); }
     el.classList.add(o.ok ? "ok" : "no", o.ok ? "pop" : "shake"); marcar(o.ok);
   },
   vf: el => {
@@ -516,6 +571,15 @@ const A = {
       if (J.pos === q.p.length) marcar(true);
     } else { sacudir(el); marcar(false); }
   },
+  silaba: el => {
+    const q = J.items[J.i], o = q.pool[+el.dataset.k];
+    if (J.bloq || el.disabled) return;
+    if (o.s === q.sil[J.pos]) {
+      const c = $("#cs" + J.pos); c.textContent = o.s; c.classList.add("f", "pop");
+      el.disabled = true; J.pos++; sonar("clic"); decir(o.s);
+      if (J.pos === q.sil.length) marcar(true);
+    } else { sacudir(el); marcar(false); }
+  },
   ptab: el => { sub.ptab = el.dataset.t; sub.probando = null; render(); },
   cat: el => { sub.cat = el.dataset.c; sub.confirmar = null; render(); },
   dejarProbar: () => { sub.probando = null; render(); },
@@ -555,7 +619,7 @@ document.addEventListener("keydown", e => {
 /* ---------------- Arranque ---------------- */
 (async () => {
   try {
-    CAT = await api("/api/catalogo");
+    CAT = await cargarCatalogo();
     Avatar.init(CAT.items);
     ING = await api("/api/ingreso");
     if (ING.sesion) { await cargarTodo(); ir("inicio"); } else ir("ingreso");

@@ -98,6 +98,11 @@ button:focus-visible,input:focus-visible{outline:4px solid var(--berry);outline-
 .g-oraciones{background:linear-gradient(135deg,#b9fbc0,#98f5e1)}
 .g-rimas{background:linear-gradient(135deg,#cdb4ff,#a0c4ff)}
 .g-palabras{background:linear-gradient(135deg,#ffc8dd,#ffafcc)}
+.g-silabas{background:linear-gradient(135deg,#ffd6a5,#fdffb6)}
+.g-completar{background:linear-gradient(135deg,#caffbf,#9bf6ff)}
+.g-opuestos{background:linear-gradient(135deg,#bdb2ff,#ffc6ff)}
+.g-ortografia{background:linear-gradient(135deg,#9bf6ff,#a0c4ff)}
+.g-clases{background:linear-gradient(135deg,#ffadad,#ffd6a5)}
 .g-tareas{background:linear-gradient(135deg,#fff3b0,#ffd166)}
 .g-perfil{background:linear-gradient(135deg,#a0e7e5,#b4f8c8)}
 
@@ -160,6 +165,13 @@ button:focus-visible,input:focus-visible{outline:4px solid var(--berry);outline-
 .letra{width:64px;height:64px;font-size:2rem;font-weight:800;text-transform:uppercase;border:3px solid var(--ink);border-radius:16px;background:var(--sun);cursor:pointer;box-shadow:0 4px 0 var(--ink)}
 .letra:disabled{opacity:.2;cursor:default;box-shadow:none}
 .palabra-grande{font-size:2.6rem;text-align:center;font-weight:800;font-family:"Baloo 2",sans-serif}
+.casilla.sil{width:auto;min-width:clamp(64px,19vw,92px);padding:0 10px}
+.letra.sil{width:auto;min-width:clamp(64px,18vw,84px);padding:0 12px}
+.hueco{display:inline-block;min-width:2.2ch;padding:0 .2em;margin:0 .08em;border-bottom:4px dashed var(--ink);color:var(--ink2);text-align:center}
+.hueco.f{border-bottom-style:solid;color:var(--leaf2);background:var(--mint);border-radius:8px 8px 0 0}
+.oracion{background:#fff;border:3px solid var(--ink);border-radius:16px;padding:12px 16px;font-size:clamp(1.35rem,3.8vw,1.8rem);line-height:1.6}
+.marca{background:var(--sun);color:inherit;border-radius:6px;padding:0 .2em}
+.opt.letra-op{font-size:2.2rem}
 
 /* ---------- Premio ---------- */
 .premio{text-align:center;max-width:760px;margin:0 auto}

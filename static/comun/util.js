@@ -20,6 +20,13 @@ async function api(url, {method = "GET", body} = {}) {
   return data;
 }
 
+/* El servidor manda el JSON con las claves en orden alfabético: se recupera el orden de juegos y de clases de palabras. */
+async function cargarCatalogo() {
+  const c = await api("/api/catalogo");
+  for (const k of ["tipos", "clases"]) c[k] = Object.fromEntries(c.orden[k].map(id => [id, c[k][id]]));
+  return c;
+}
+
 function fechaCorta(s) {
   if (!s) return "—";
   const d = new Date(s.replace(" ", "T"));

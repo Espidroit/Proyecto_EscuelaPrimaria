@@ -123,6 +123,7 @@ CONFIG_INICIAL = {
     "ocultas": [],            # actividades ocultas
     "mayus_1": True,          # imprenta mayúscula para 1.º grado
     "nivel2_para_1": False,   # mostrar actividades de nivel 2 a 1.º grado
+    "nivel3_para_2": False,   # mostrar actividades de nivel 3 a 2.º grado
     "auto_leer": True,        # leer en voz alta automáticamente
     "voz_lenta": False,
     "sonido": True,

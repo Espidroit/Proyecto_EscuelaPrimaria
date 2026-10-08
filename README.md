@@ -1,6 +1,6 @@
 # 🏝️ La Isla de los Cuentos
 
-Juego educativo de **Lengua y Literatura para 1.º y 2.º grado**, hecho con **Python (Flask) + SQLite**.
+Juego educativo de **Lengua y Literatura para 1.º, 2.º y 3.º grado**, hecho con **Python (Flask) + SQLite**.
 Los chicos leen cuentos, arman oraciones, buscan rimas y escriben palabras. Ganan estrellas, monedas, medallas y figuritas, y personalizan su avatar.
 La docente tiene un **panel aparte, protegido con usuario y contraseña**, donde deja tareas y sigue la evolución de cada alumno.
 
@@ -33,18 +33,24 @@ La docente tiene un **panel aparte, protegido con usuario y contraseña**, donde
 
 ## Qué hay en el juego (chicos)
 
-- **📚 Cuentos** (9 incluidos): lectura con voz, preguntas de personajes, lugar y tiempo, datos del texto, vocabulario, sentimientos, inferencias y orden de los hechos.
+- **📚 Cuentos** (10 incluidos): lectura con voz, preguntas de personajes, lugar y tiempo, datos del texto, vocabulario, sentimientos, inferencias y orden de los hechos.
 - **🧱 Ordeno oraciones**, **🎵 Busco la rima** y **🔤 Armo palabras**.
+- **👏 Juego de sílabas**: armar la palabra tocando sus sílabas en orden (conciencia silábica).
+- **📌 La palabra que falta**: completar oraciones con la palabra que tiene sentido y concuerda.
+- **🔄 Parecidas y opuestas**: sinónimos y antónimos.
+- **🖍️ ¿Con qué letra va?**: ortografía (b/v, c/s/z, ll/y, r/rr, g/j, h).
+- **🏷️ ¿Quién, cómo es o qué hace?**: clases de palabras (sustantivo, adjetivo, verbo), pensado para 3.º grado.
 - **📝 Mis tareas**: las tareas que deja la seño, con su consigna (se puede escuchar).
 - **👤 Mi perfil**: avatar con 12 categorías para personalizar (peinado, ropa, gorros, anteojos, mascotas, fondos, marcos…). Algunas cosas se compran con monedas; otras se desbloquean subiendo de nivel o ganando medallas.
 - Adaptación por grado: en 1.º grado hay menos opciones por pregunta, secuencias más cortas y, si se quiere, texto en IMPRENTA MAYÚSCULA.
+- Niveles de actividades: 1.º grado ve el nivel 1, 2.º grado los niveles 1 y 2, y 3.º grado los tres niveles. En **Ajustes** se puede abrir un nivel más a 1.º o a 2.º grado.
 
 ## Panel docente
 
 - **Panel general**: indicadores, evolución semanal del grupo, alumnos para acompañar, resultados por tema, mapa del grupo y actividad reciente.
 - **Alumnos**: ficha de cada chico con evolución, resultados por tema, preguntas donde se equivoca, historial, tareas, **observaciones** (registro con fecha) y su clave de acceso.
 - **Tareas**: crear tareas eligiendo actividades, destinatarios (todos, un grado o algunos chicos), fecha límite y premio. Ver quién terminó y con qué resultado.
-- **Actividades**: ocultar o mostrar actividades y **crear propias** (cuentos con preguntas, oraciones, rimas o palabras).
+- **Actividades**: ocultar o mostrar actividades y **crear propias** de cualquiera de los 9 tipos de juego).
 - **Temas y contenidos**: qué aprendizaje trabaja cada tema; se pueden desactivar temas no enseñados todavía.
 - **Ajustes**: preferencias del juego, cambio de contraseña, exportar resultados a Excel (CSV), copia de seguridad y registro de accesos.
 
