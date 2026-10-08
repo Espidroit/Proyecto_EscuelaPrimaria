@@ -1,0 +1,6 @@
+# Python
+__pycache__/
+*.pyc
+
+# Datos locales (se generan solos al iniciar la app)
+datos/
