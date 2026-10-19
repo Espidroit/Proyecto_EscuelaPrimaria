@@ -149,7 +149,7 @@ textarea{min-height:110px;resize:vertical;line-height:1.55}
 .interruptor .t{flex:1}
 .interruptor .t b{display:block}
 .interruptor .t small{color:var(--muted)}
-.sw{position:relative;width:42px;height:24px;flex:none;margin-top:2px}
+.sw{position:relative;display:inline-block;vertical-align:middle;width:42px;height:24px;flex:none;margin-top:2px}
 .sw input{opacity:0;width:0;height:0;position:absolute}
 .sw span{position:absolute;inset:0;background:#cfd6e3;border-radius:999px;transition:.2s;cursor:pointer}
 .sw span::before{content:"";position:absolute;width:18px;height:18px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
@@ -249,3 +249,32 @@ textarea{min-height:110px;resize:vertical;line-height:1.55}
 .ver-pass:hover{background:#e2e7ef;color:var(--ink)}
 .ver-pass.on{background:var(--accent-w);color:var(--accent-d)}
 .ver-pass svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+
+/* ---------- Cuentos ---------- */
+.nuevo-cuento .panel-b{display:flex;gap:20px;align-items:center;flex-wrap:wrap;background:linear-gradient(120deg,#eef5fe,#eefaf4);border-radius:var(--radius)}
+.nc-icono{font-size:40px;width:64px;height:64px;border-radius:16px;background:#fff;display:grid;place-items:center;box-shadow:var(--shadow)}
+.pasos{margin:0;padding-left:20px;color:var(--ink2)}
+.pasos li{margin:2px 0}
+.tarjetas-cuento{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
+.t-cuento{border:1px solid var(--line);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:10px;background:#fffdf6}
+.tc-cab{display:flex;gap:12px;align-items:center}
+.tc-em{font-size:32px;width:48px;text-align:center}
+.tc-tags{display:flex;gap:4px;flex-wrap:wrap;align-items:center}
+.modal.ancho{max-width:720px}
+.prev-cuento{background:#fffdf6;border:2px solid #26324a;border-radius:18px;padding:18px 20px;text-align:center}
+.prev-cuento .pc-em{font-size:52px;line-height:1.1}
+.prev-cuento h3{font-size:22px;margin:6px 0 10px}
+.prev-cuento p{font-family:"Andika","Comic Sans MS",sans-serif;font-size:18px;line-height:1.7;text-align:left;margin:0}
+.prev-preguntas{padding-left:20px;margin:0}
+.prev-preguntas>li{margin-bottom:12px}
+.opciones-prev{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.opciones-prev span{border:1px solid var(--line);border-radius:8px;padding:3px 10px;font-size:13px;background:#fff}
+.opciones-prev span.bien{border-color:#9fd6b7;background:var(--ok-bg);color:var(--ok);font-weight:600}
+
+.otros-ej{flex-basis:100%;display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding-top:14px;border-top:1px solid #d9e3f0;font-size:13.5px}
+.chip-ej{display:inline-flex;align-items:center;gap:6px;background:#fff;border:1px solid var(--line);border-radius:999px;padding:5px 12px;color:var(--ink);text-decoration:none;font-weight:600}
+.chip-ej:hover{border-color:var(--accent);color:var(--accent)}
+.elegir-tipo{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:8px}
+.elegir-tipo .check{text-decoration:none;color:inherit}
+.segmento{flex-wrap:wrap}
+.segmento button,.segmento a{white-space:nowrap}

@@ -22,6 +22,8 @@ const IC = {
   ojo: '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>',
   juego: '<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>',
   candado: '<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
+  libro: '<path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>',
+  check: '<polyline points="20 6 9 17 4 12"/>',
 };
 const ic = (k, cls = "") => `<svg viewBox="0 0 24 24" class="${cls}" aria-hidden="true">${IC[k]}</svg>`;
 
@@ -30,10 +32,10 @@ function toast(t, err = false) {
   const d = document.createElement("div"); d.className = "toast" + (err ? " err" : ""); d.textContent = t;
   $("#toasts").appendChild(d); setTimeout(() => d.remove(), 3400);
 }
-function modal({titulo, cuerpo, botones}) {
+function modal({titulo, cuerpo, botones, ...opc}) {
   return new Promise(res => {
     const capa = $("#capa-modal");
-    capa.innerHTML = `<div class="fondo"><div class="modal" role="dialog" aria-modal="true" aria-label="${esc(titulo)}">
+    capa.innerHTML = `<div class="fondo"><div class="modal ${opc.ancho ? "ancho" : ""}" role="dialog" aria-modal="true" aria-label="${esc(titulo)}">
       <div class="mh">${esc(titulo)}</div><div class="mb">${cuerpo}</div>
       <div class="mf">${botones.map((b, i) => `<button class="btn ${b.cls || ""}" data-m="${i}">${esc(b.txt)}</button>`).join("")}</div></div></div>`;
     const cerrar = v => { capa.innerHTML = ""; document.removeEventListener("keydown", tecla); res(v); };
@@ -61,7 +63,7 @@ async function llamar(fn, okMsg) {
 
 /* ---------------- Estructura de la página ---------------- */
 const NAV = [["panel", "Panel general", "panel"], ["alumnos", "Alumnos", "alumnos"], ["tareas", "Tareas", "tareas"],
-             ["actividades", "Actividades", "actividades"], ["temas", "Temas y contenidos", "temas"], ["ajustes", "Ajustes", "ajustes"]];
+             ["cuentos", "Cuentos", "libro"], ["actividades", "Actividades", "actividades"], ["temas", "Temas y contenidos", "temas"], ["ajustes", "Ajustes", "ajustes"]];
 function shell(seccion, titulo, cuerpo, {migas = "", acciones = ""} = {}) {
   return `<div class="shell">
     <aside class="side">
@@ -109,7 +111,7 @@ async function navegar() {
   const [r, a, b] = (location.hash.replace(/^#\/?/, "") || "panel").split("/");
   const rutas = {panel: pPanel, alumnos: pAlumnos, alumno: () => pAlumno(a, b), tarjetas: pTarjetas,
                  tareas: pTareas, tarea: () => pTarea(a), "tarea-nueva": pTareaNueva,
-                 actividades: pActividades, actividad: () => pActividad(a), "actividad-nueva": () => pEditor(a, null),
+                 cuentos: pCuentos, actividades: pActividades, actividad: () => pActividad(a), "actividad-nueva": () => pEditor(a, null),
                  "actividad-editar": () => pEditor(null, a), temas: pTemas, ajustes: pAjustes};
   try { await (rutas[r] || pPanel)(); }
   catch (e) {
@@ -328,7 +330,8 @@ async function pTareas() {
 }
 
 async function pTareaNueva() {
-  const [acts, alumnos] = await Promise.all([api("/api/docente/actividades"), api("/api/docente/alumnos")]);
+  const [todasActs, alumnos] = await Promise.all([api("/api/docente/actividades"), api("/api/docente/alumnos")]);
+  const acts = todasActs.filter(a => a.estado !== "borrador");
   const activos = alumnos.filter(a => a.activo);
   const manana = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
   const grupos = Object.keys(CAT.tipos).map(t => {
@@ -388,15 +391,15 @@ async function pActividades() {
     <div class="segmento"><button class="${!UI.actFiltro ? "on" : ""}" data-act="actFiltro" data-t="">Todas (${l.length})</button>${Object.entries(CAT.tipos).map(([k, t]) => `<button class="${UI.actFiltro === k ? "on" : ""}" data-act="actFiltro" data-t="${k}">${t.i} ${esc(t.n)}</button>`).join("")}</div>
   </div>
   <section class="panel"><div class="panel-b sin"><div class="tabla-wrap"><table><thead><tr><th>Actividad</th><th>Tipo</th><th class="c">Nivel</th><th>Temas que trabaja</th><th class="r">Veces jugada</th><th>Resultado del grupo</th><th class="c">En la isla</th><th></th></tr></thead><tbody>
-    ${vis.map(a => `<tr><td><span class="persona"><span style="font-size:22px">${a.e}</span><span>${esc(a.titulo)}<br><span class="muted" style="font-size:12px;font-weight:500">${a.base ? "Incluida" : "✍️ Creada por vos"} · ${a.n} ítems</span></span></span></td>
+    ${vis.map(a => `<tr><td><span class="persona"><span style="font-size:22px">${a.e}</span><span>${esc(a.titulo)}<br><span class="muted" style="font-size:12px;font-weight:500">${a.base ? "Incluida" : "✍️ Creada por ustedes"} · ${a.n} ítems</span>${a.estado === "borrador" ? ` <span class="estado e-warn">Borrador</span>` : ""}</span></span></td>
       <td class="muted">${tipoN(a.tipo)}</td><td class="c">${a.nivel}</td><td>${a.temas.map(temaTag).join("")}</td><td class="r num">${a.veces}</td><td>${Graficos.pill(a.pct)}</td>
       <td class="c"><label class="sw" title="Mostrar en la isla"><input type="checkbox" data-act="visible" data-id="${a.id}" ${a.visible ? "checked" : ""}><span></span></label></td>
-      <td class="r"><div class="acciones" style="justify-content:flex-end"><a class="btn sec chico" href="#/actividad/${a.id}">Ver</a>${a.base ? "" : `<a class="btn sec chico" href="#/actividad-editar/${a.id}">Editar</a><button class="btn peligro chico" data-act="borrarAct" data-id="${a.id}">Borrar</button>`}</div></td></tr>`).join("")}
+      <td class="r"><div class="acciones" style="justify-content:flex-end">${a.estado === "borrador" ? `<button class="btn chico" data-act="publicar" data-id="${a.id}">${ic("check")}Publicar</button>` : ""}<a class="btn sec chico" href="#/actividad/${a.id}">Ver</a>${a.base ? "" : `<a class="btn sec chico" href="#/actividad-editar/${a.id}">Editar</a><button class="btn peligro chico" data-act="borrarAct" data-id="${a.id}">Borrar</button>`}</div></td></tr>`).join("")}
   </tbody></table></div></div></section>
   <section class="panel"><div class="panel-h"><h2>Crear una actividad nueva</h2></div><div class="panel-b"><div class="check-lista">
     ${Object.entries(CAT.tipos).map(([k, t]) => `<a class="check" href="#/actividad-nueva/${k}" style="text-decoration:none;color:inherit"><span class="em">${t.i}</span><span><b>${esc(t.n)}</b><br><span class="muted" style="font-size:13px">${esc(t.desc)}</span></span></a>`).join("")}
   </div></div></section>`;
-  pintar(shell("actividades", "Actividades", cuerpo));
+  pintar(shell("actividades", "Actividades", cuerpo, {acciones: `<button class="btn" data-act="nuevaActividad">${ic("mas")}Nueva actividad</button>`}));
 }
 
 function itemTexto(tipo, it) {
@@ -431,6 +434,75 @@ async function pActividad(id) {
     acciones: a.base ? "" : `<a class="btn sec" href="#/actividad-editar/${a.id}">Editar</a>`}));
 }
 
+/* =========================================================
+   Cuentos: escribir, revisar, publicar y supervisar
+   ========================================================= */
+async function pCuentos() {
+  const todos = (await api("/api/docente/actividades")).filter(a => a.tipo === "cuento");
+  const revisar = todos.filter(a => a.estado === "borrador");
+  const publicados = todos.filter(a => a.estado !== "borrador");
+  const enIsla = publicados.filter(a => a.visible).length;
+  const lecturas = todos.reduce((s, a) => s + a.veces, 0);
+  const conRes = publicados.filter(a => a.pct !== null);
+  const prom = conRes.length ? Math.round(conRes.reduce((s, a) => s + a.pct, 0) / conRes.length) : null;
+  const quien = a => a.base ? "Incluido en el juego" : `Escrito por ${esc(a.autor || "una docente")}${a.editado_por && a.editado_por !== a.autor ? ` · editado por ${esc(a.editado_por)}` : ""}`;
+  const cuerpo = `
+  <div class="kpis">
+    <div class="kpi"><div class="l">Cuentos en la isla</div><div class="v">${enIsla}</div><div class="s">publicados y visibles para los chicos</div></div>
+    <div class="kpi"><div class="l">Para revisar</div><div class="v">${revisar.length}</div><div class="s">${revisar.length ? "esperando que los publiques" : "todo revisado"}</div></div>
+    <div class="kpi"><div class="l">Lecturas</div><div class="v">${lecturas}</div><div class="s">veces que los chicos terminaron un cuento</div></div>
+    <div class="kpi"><div class="l">Comprensión promedio</div><div class="v">${prom === null ? "—" : prom + "%"}</div><div class="s">respuestas correctas a la primera</div></div>
+  </div>
+  <section class="panel nuevo-cuento"><div class="panel-b">
+    <div class="nc-icono">✍️</div>
+    <div style="flex:1;min-width:240px"><h2 style="font-size:17px;margin-bottom:6px">Escribir un cuento nuevo</h2>
+      <ol class="pasos"><li><b>Escribí</b> el cuento y sus preguntas.</li><li><b>Revisalo</b> con la vista previa, tal como lo van a ver los chicos.</li><li><b>Publicalo</b> y aparece en la isla.</li></ol></div>
+    <a class="btn" href="#/actividad-nueva/cuento">${ic("mas")}Escribir cuento</a>
+    <div class="otros-ej"><span class="muted">¿Otro tipo de ejercicio para practicar?</span>
+      ${Object.entries(CAT.tipos).filter(([k]) => k !== "cuento").map(([k, t]) => `<a class="chip-ej" href="#/actividad-nueva/${k}"><span>${t.i}</span>${esc(t.n)}</a>`).join("")}</div>
+  </div></section>
+  ${revisar.length ? `
+  <section class="panel"><div class="panel-h"><h2>Para revisar</h2><span class="estado e-warn">${revisar.length}</span>
+    <span class="muted" style="font-size:12.5px">Los chicos todavía no ven estos cuentos</span></div>
+    <div class="panel-b"><div class="tarjetas-cuento">${revisar.map(a => `
+      <article class="t-cuento"><div class="tc-cab"><span class="tc-em">${a.e}</span><div><b>${esc(a.titulo)}</b><div class="muted" style="font-size:12.5px">${quien(a)}</div></div></div>
+        <div class="tc-tags"><span class="tag">Nivel ${a.nivel}</span><span class="tag">${a.n} preguntas</span><span class="estado e-warn">Borrador</span></div>
+        <div class="muted" style="font-size:12.5px">${a.actualizado ? "Última modificación: " + fechaHora(a.actualizado) : ""}</div>
+        <div class="acciones"><button class="btn sec chico" data-act="vistaCuento" data-id="${a.id}">${ic("ojo")}Vista previa</button>
+          <a class="btn sec chico" href="#/actividad-editar/${a.id}">Editar</a>
+          <button class="btn chico" data-act="publicar" data-id="${a.id}">${ic("check")}Publicar</button>
+          <button class="btn peligro chico" data-act="borrarAct" data-id="${a.id}">Borrar</button></div></article>`).join("")}</div></div></section>` : ""}
+  <section class="panel"><div class="panel-h"><h2>Biblioteca de cuentos</h2><span class="muted" style="font-size:12.5px">${publicados.length} cuentos publicados</span></div>
+    <div class="panel-b sin"><div class="tabla-wrap"><table><thead><tr><th>Cuento</th><th class="c">Nivel</th><th class="r">Preguntas</th><th class="r">Lecturas</th><th>Comprensión</th><th class="c">En la isla</th><th></th></tr></thead><tbody>
+    ${publicados.map(a => `<tr><td><span class="persona"><span style="font-size:22px">${a.e}</span><span>${esc(a.titulo)}<br><span class="muted" style="font-size:12px;font-weight:500">${quien(a)}</span></span></span></td>
+      <td class="c">${a.nivel}</td><td class="r num">${a.n}</td><td class="r num">${a.veces}</td><td>${Graficos.pill(a.pct)}</td>
+      <td class="c"><label class="sw" title="Mostrar en la isla"><input type="checkbox" data-act="visible" data-id="${a.id}" ${a.visible ? "checked" : ""}><span></span></label></td>
+      <td class="r"><div class="acciones" style="justify-content:flex-end">
+        <button class="btn sec chico" data-act="vistaCuento" data-id="${a.id}">Vista previa</button>
+        <a class="btn sec chico" href="#/actividad/${a.id}">Resultados</a>
+        ${a.base ? "" : `<a class="btn sec chico" href="#/actividad-editar/${a.id}">Editar</a><button class="btn fantasma chico" data-act="despublicar" data-id="${a.id}">Pasar a borrador</button>`}</div></td></tr>`).join("")}
+    </tbody></table></div></div></section>
+  <div class="ayuda"><b>¿Cómo se supervisa?</b> Los cuentos nuevos quedan como <b>borrador</b> hasta que alguien los publica, así se pueden revisar antes de que los vean los chicos. En «Resultados» ves qué preguntas de cada cuento les cuestan más.</div>`;
+  pintar(shell("cuentos", "Cuentos", cuerpo));
+}
+
+async function vistaCuento(id) {
+  const a = await llamar(() => api("/api/docente/actividades/" + encodeURIComponent(id)));
+  if (!a) return;
+  const preguntas = a.preguntas.map((q, i) => `<li><span class="tag">${CAT.temas[q.tema]?.i || ""} ${esc(CAT.temas[q.tema]?.n || q.tema)}</span><br>
+    ${q.t === "e" ? `<b>${esc(q.p)}</b><div class="opciones-prev">${q.o.map((o, k) => `<span class="${k === 0 ? "bien" : ""}">${k === 0 ? "✓ " : ""}${esc(o)}</span>`).join("")}</div>`
+      : q.t === "vf" ? `<b>¿Es verdad? «${esc(q.p)}»</b><div class="opciones-prev"><span class="${q.v ? "bien" : ""}">👍 Sí</span><span class="${q.v ? "" : "bien"}">👎 No</span></div>`
+      : `<b>Ordenar lo que pasó:</b><ol>${q.items.map(x => `<li>${esc(x)}</li>`).join("")}</ol>`}</li>`).join("");
+  const r = await modal({ancho: true, titulo: "Vista previa · así lo ven los chicos", cuerpo: `
+    <div class="prev-cuento"><div class="pc-em">${a.e}</div><h3>${esc(a.titulo)}</h3><p>${esc(a.texto)}</p></div>
+    <h4 style="margin:16px 0 8px">Preguntas (${a.preguntas.length})</h4><ol class="prev-preguntas">${preguntas}</ol>
+    <p class="muted" style="font-size:12.5px;margin-bottom:0">En 1.º grado se muestran 2 opciones por pregunta (la correcta y la primera incorrecta).</p>`,
+    botones: [{txt: "Cerrar", cls: "sec", valor: null}, ...(a.base ? [] : [{txt: "Editar", cls: "sec", valor: "editar"}]),
+              ...(!a.base && a.estado === "borrador" ? [{txt: "Publicar", valor: "publicar"}] : [])]});
+  if (r === "editar") location.hash = "#/actividad-editar/" + id;
+  if (r === "publicar") A.publicar({dataset: {id}});
+}
+
 /* ---------- Editor de actividades ---------- */
 const COMPRENSION = () => Object.entries(CAT.temas).filter(([k, t]) => t.area === "Comprensión lectora" && k !== "secuencia");
 function nuevoBorrador(tipo) {
@@ -456,7 +528,7 @@ function itemVacio(tipo) {
 async function pEditor(tipo, id) {
   if (id) {
     const a = await api("/api/docente/actividades/" + encodeURIComponent(id));
-    BORRADOR = {id, tipo: a.tipo, titulo: a.titulo, e: a.e, sticker: a.sticker, nivel: String(a.nivel)};
+    BORRADOR = {id, tipo: a.tipo, titulo: a.titulo, e: a.e, sticker: a.sticker, nivel: String(a.nivel), estado: a.estado};
     if (a.tipo === "cuento") {
       BORRADOR.texto = a.texto;
       BORRADOR.preguntas = a.preguntas.filter(q => q.t !== "o").map(q => ({...qVacia(), ...q, o: [...(q.o || []), "", "", ""].slice(0, 3)}));
@@ -528,8 +600,13 @@ function dibujarEditor() {
       <small class="muted">Para escribir un emoji en Windows: tecla Windows + punto ( . )</small></div></section>
     ${especifico}
     <div class="error-form" id="err"></div>
-    <div class="acciones"><a class="btn sec" href="#/actividades">Cancelar</a><button class="btn" type="submit">Guardar actividad</button></div></form>`;
-  pintar(shell("actividades", b.id ? "Editar actividad" : "Nueva actividad: " + esc(t.n), cuerpo, {migas: `<a href="#/actividades">Actividades</a> /`}));
+    ${b.tipo === "cuento" ? `<div class="ayuda">Si lo guardás como <b>borrador</b>, los chicos no lo ven hasta que lo publiques desde <a href="#/cuentos">Cuentos</a>.</div>` : ""}
+    <div class="acciones"><a class="btn sec" href="${b.tipo === "cuento" ? "#/cuentos" : "#/actividades"}">Cancelar</a>
+      <button class="btn sec" type="submit" value="borrador">Guardar como borrador</button>
+      <button class="btn" type="submit" value="publicar">${ic("check")}Guardar y publicar</button></div></form>`;
+  const seccion = b.tipo === "cuento" ? "cuentos" : "actividades";
+  pintar(shell(seccion, b.id ? (b.tipo === "cuento" ? "Editar cuento" : "Editar actividad") : (b.tipo === "cuento" ? "Escribir un cuento nuevo" : "Nueva actividad: " + esc(t.n)), cuerpo,
+    {migas: seccion === "cuentos" ? `<a href="#/cuentos">Cuentos</a> /` : `<a href="#/actividades">Actividades</a> /`}));
 }
 function fijar(obj, ruta, val) {
   const p = ruta.split("."); let o = obj;
@@ -668,7 +745,7 @@ const A = {
   visible: async el => { await llamar(() => api(`/api/docente/actividades/${encodeURIComponent(el.dataset.id)}/visible`, {method: "POST", body: {visible: el.checked}}), el.checked ? "Ahora se ve en la isla." : "Oculta en la isla."); },
   borrarAct: async el => {
     if (!await confirmar("Borrar actividad", "Se borra la actividad y se quita de las tareas donde estaba.", "Borrar", true)) return;
-    if (await llamar(() => api(`/api/docente/actividades/${encodeURIComponent(el.dataset.id)}`, {method: "DELETE"}), "Actividad borrada.")) pActividades();
+    if (await llamar(() => api(`/api/docente/actividades/${encodeURIComponent(el.dataset.id)}`, {method: "DELETE"}), "Actividad borrada.")) navegar();
   },
   agregarQ: () => { BORRADOR.preguntas.push(qVacia("detalles")); dibujarEditor(); },
   agregarItem: () => { BORRADOR.items.push(itemVacio(BORRADOR.tipo)); dibujarEditor(); },
@@ -677,6 +754,19 @@ const A = {
     const {cfg} = await api("/api/docente/config");
     const off = new Set(cfg.temas_off); el.checked ? off.delete(el.dataset.t) : off.add(el.dataset.t);
     if (await llamar(() => api("/api/docente/config", {method: "PUT", body: {temas_off: [...off]}}), "Temas actualizados.")) pTemas(); else pTemas();
+  },
+  vistaCuento: el => vistaCuento(el.dataset.id),
+  nuevaActividad: () => {
+    modal({ancho: true, titulo: "¿Qué querés crear?", cuerpo: `<p class="muted" style="margin-top:0">Elegí el tipo de ejercicio. Después lo podés revisar y publicar.</p>
+      <div class="elegir-tipo">${Object.entries(CAT.tipos).map(([k, t]) => `<a class="check" href="#/actividad-nueva/${k}"><span class="em">${t.i}</span><span><b>${esc(t.n)}</b><br><span class="muted" style="font-size:13px">${esc(t.desc)}</span></span></a>`).join("")}</div>`,
+      botones: [{txt: "Cancelar", cls: "sec", valor: null}]});
+  },
+  publicar: async el => {
+    if (await llamar(() => api(`/api/docente/actividades/${encodeURIComponent(el.dataset.id)}/estado`, {method: "POST", body: {estado: "publicado"}}), "¡Publicado! Ya aparece en la isla.")) navegar();
+  },
+  despublicar: async el => {
+    if (!await confirmar("Pasar a borrador", "Los chicos dejan de ver este cuento hasta que lo vuelvas a publicar. Sus resultados se conservan.")) return;
+    if (await llamar(() => api(`/api/docente/actividades/${encodeURIComponent(el.dataset.id)}/estado`, {method: "POST", body: {estado: "borrador"}}), "Ahora es un borrador.")) navegar();
   },
   verPass: el => {
     const i = el.parentElement.querySelector("input"), ver = i.type === "password";
@@ -720,13 +810,15 @@ const FORM = {
     try { const r = await api("/api/docente/tareas", {method: "POST", body: d}); toast("Tarea creada. Los chicos ya la ven en «Mis tareas»."); location.hash = "#/tarea/" + r.id; }
     catch (e) { if (e.status === 401) return llamar(() => Promise.reject(e)); $("#err").textContent = e.message; }
   },
-  actividad: async () => {
+  actividad: async (f, _d, ev) => {
     try {
       const d = payloadActividad();
+      d.publicar = !!(ev && ev.submitter && ev.submitter.value === "publicar");
       const r = BORRADOR.id ? await api("/api/docente/actividades/" + encodeURIComponent(BORRADOR.id), {method: "PUT", body: d})
                             : await api("/api/docente/actividades", {method: "POST", body: d});
-      const id = BORRADOR.id || r.id; BORRADOR = null;
-      toast("Actividad guardada."); location.hash = "#/actividad/" + id;
+      const id = BORRADOR.id || r.id, esCuento = BORRADOR.tipo === "cuento"; BORRADOR = null;
+      toast(d.publicar ? "¡Publicado! Ya aparece en la isla." : "Guardado como borrador. Publicalo cuando esté listo.");
+      location.hash = esCuento ? "#/cuentos" : "#/actividad/" + id;
     } catch (e) { if (e.status === 401) return llamar(() => Promise.reject(e)); $("#err").textContent = e.message; $("#err").scrollIntoView({block: "center"}); }
   },
   password: async (f, d) => {
@@ -759,7 +851,7 @@ document.addEventListener("input", e => {
 document.addEventListener("submit", e => {
   const f = e.target.closest("[data-form]"); if (!f) return;
   e.preventDefault();
-  FORM[f.dataset.form](f, Object.fromEntries(new FormData(f)));
+  FORM[f.dataset.form](f, Object.fromEntries(new FormData(f)), e);
 });
 
 (async () => {

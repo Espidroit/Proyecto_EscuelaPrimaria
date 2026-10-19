@@ -117,9 +117,10 @@ def texto(v, maximo=200):
 # =================================================================
 def todas_actividades(con):
     acts = [dict(a) for a in C.ACTIVIDADES_BASE]
-    for r in con.execute("SELECT id, tipo, datos FROM actividades_custom ORDER BY creado"):
+    for r in con.execute("SELECT id, tipo, datos, creado FROM actividades_custom ORDER BY creado"):
         d = json.loads(r["datos"])
-        d.update({"id": r["id"], "tipo": r["tipo"], "base": False})
+        d.setdefault("estado", "publicado")
+        d.update({"id": r["id"], "tipo": r["tipo"], "base": False, "creado": r["creado"]})
         acts.append(d)
     return acts
 
@@ -158,7 +159,8 @@ def niveles_para(grado, cfg):
 def visibles_para(con, alumno, cfg):
     niveles = niveles_para(alumno["grado"], cfg)
     acts = [a for a in todas_actividades(con)
-            if a["id"] not in cfg["ocultas"] and int(a["nivel"]) in niveles and tema_juego_activo(a, cfg)]
+            if a["id"] not in cfg["ocultas"] and int(a["nivel"]) in niveles and tema_juego_activo(a, cfg)
+            and a.get("estado", "publicado") == "publicado"]
     acts.sort(key=lambda a: (ORDEN_TIPOS.index(a["tipo"]), int(a["nivel"])))
     return acts
 
@@ -199,7 +201,8 @@ def resumen_actividad(act):
     n = len(act["preguntas"] if act["tipo"] == "cuento" else act["items"])
     return {"id": act["id"], "tipo": act["tipo"], "titulo": act["titulo"], "e": act.get("e", "📖"),
             "sticker": act.get("sticker", "⭐"), "nivel": int(act["nivel"]), "temas": temas, "n": n,
-            "base": act.get("base", False)}
+            "base": act.get("base", False), "estado": act.get("estado", "publicado"), "autor": act.get("autor"),
+            "editado_por": act.get("editado_por"), "creado": act.get("creado"), "actualizado": act.get("actualizado")}
 
 
 # =================================================================
@@ -1006,7 +1009,7 @@ def api_docente_tarea_crear():
     if limite and not re.fullmatch(r"\d{4}-\d{2}-\d{2}", limite):
         return error("La fecha límite no es válida.")
     con = con_db()
-    ids_validos = {a["id"] for a in todas_actividades(con)}
+    ids_validos = {a["id"] for a in todas_actividades(con) if a.get("estado", "publicado") == "publicado"}
     acts = [x for x in (d.get("actividades") or []) if x in ids_validos][:12]
     if not acts:
         con.close()
@@ -1229,11 +1232,14 @@ def validar_actividad(d):
 @app.post("/api/docente/actividades")
 @requiere("docente")
 def api_docente_actividad_crear():
+    d = cuerpo()
     try:
-        tipo, datos = validar_actividad(cuerpo())
+        tipo, datos = validar_actividad(d)
     except ValueError as e:
         return error(str(e))
     con = con_db()
+    yo = con.execute("SELECT nombre FROM docentes WHERE id=?", (session["uid"],)).fetchone()
+    datos.update(estado="publicado" if d.get("publicar") else "borrador", autor=yo[0] if yo else None, actualizado=db.ahora())
     aid = "c-" + secrets.token_hex(4)
     con.execute("INSERT INTO actividades_custom VALUES(?,?,?,?)", (aid, tipo, json.dumps(datos, ensure_ascii=False), db.ahora()))
     con.commit()
@@ -1244,15 +1250,20 @@ def api_docente_actividad_crear():
 @app.put("/api/docente/actividades/<aid>")
 @requiere("docente")
 def api_docente_actividad_editar(aid):
+    d = cuerpo()
     try:
-        tipo, datos = validar_actividad(cuerpo())
+        tipo, datos = validar_actividad(d)
     except ValueError as e:
         return error(str(e))
     con = con_db()
-    r = con.execute("SELECT tipo FROM actividades_custom WHERE id=?", (aid,)).fetchone()
+    r = con.execute("SELECT tipo, datos FROM actividades_custom WHERE id=?", (aid,)).fetchone()
     if not r:
         con.close()
-        return error("Solo se pueden editar las actividades creadas por vos.", 403)
+        return error("Solo se pueden editar las actividades creadas por ustedes.", 403)
+    viejo = json.loads(r["datos"])
+    yo = con.execute("SELECT nombre FROM docentes WHERE id=?", (session["uid"],)).fetchone()
+    datos.update(estado="publicado" if d.get("publicar") else "borrador", autor=viejo.get("autor"),
+                 editado_por=yo[0] if yo else None, actualizado=db.ahora())
     con.execute("UPDATE actividades_custom SET tipo=?, datos=? WHERE id=?", (tipo, json.dumps(datos, ensure_ascii=False), aid))
     con.commit()
     con.close()
@@ -1265,6 +1276,26 @@ def api_docente_actividad_borrar(aid):
     con = con_db()
     con.execute("DELETE FROM actividades_custom WHERE id=?", (aid,))
     con.execute("DELETE FROM tarea_actividades WHERE actividad_id=?", (aid,))
+    con.commit()
+    con.close()
+    return jsonify({"ok": True})
+
+
+@app.post("/api/docente/actividades/<aid>/estado")
+@requiere("docente")
+def api_docente_actividad_estado(aid):
+    estado = cuerpo().get("estado")
+    if estado not in ("publicado", "borrador"):
+        return error("Estado inválido.")
+    con = con_db()
+    r = con.execute("SELECT datos FROM actividades_custom WHERE id=?", (aid,)).fetchone()
+    if not r:
+        con.close()
+        return error("Solo se pueden publicar las actividades creadas por ustedes.", 403)
+    datos = json.loads(r["datos"])
+    yo = con.execute("SELECT nombre FROM docentes WHERE id=?", (session["uid"],)).fetchone()
+    datos.update(estado=estado, actualizado=db.ahora(), revisado_por=yo[0] if yo else None)
+    con.execute("UPDATE actividades_custom SET datos=? WHERE id=?", (json.dumps(datos, ensure_ascii=False), aid))
     con.commit()
     con.close()
     return jsonify({"ok": True})
