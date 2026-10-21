@@ -76,6 +76,13 @@ static/alumno/   interfaz de los chicos
 static/docente/  panel docente
 static/comun/    utilidades y dibujo del avatar (SVG)
 datos/           base de datos y clave secreta (¡hacer copias de seguridad!)
+tests/           pruebas automáticas
 ```
 
 Para agregar contenido fijo se puede editar `contenido.py`; para contenido propio de cada docente, usar **Actividades → Crear** desde el panel.
+
+## Pruebas
+
+Doble clic en **`probar.bat`** (hace falta haber abierto `iniciar.bat` al menos una vez). Revisa que el juego valide bien los datos de alumnos, tareas, actividades y ajustes, y que cada grado pueda jugar todas sus actividades. Usa una base de datos temporal: **no toca `datos/isla.db`**.
+
+Conviene correrlas después de cada cambio en `app.py` o `contenido.py`, antes de subir a GitHub.

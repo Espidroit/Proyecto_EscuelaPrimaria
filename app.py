@@ -48,6 +48,7 @@ app.json.ensure_ascii = False
 LIMITE_DOCENTE = seg.LimiteIntentos(maximo=5, ventana=600, bloqueo=600)
 LIMITE_ALUMNO = seg.LimiteIntentos(maximo=6, ventana=300, bloqueo=120)
 INACTIVIDAD = {"docente": 30 * 60, "alumno": 3 * 60 * 60}
+ESPERA_INTENTO = 3  # segundos mínimos entre dos resultados guardados por el mismo chico
 ORDEN_TIPOS = list(C.TIPOS.keys())
 
 
@@ -412,11 +413,12 @@ def api_catalogo():
 @app.post("/api/alumno/ingresar")
 def api_alumno_ingresar():
     d = cuerpo()
-    try:
-        aid = int(d.get("id"))
-    except (TypeError, ValueError):
+    aid = entero(d.get("id"), 1, 10 ** 9)
+    if aid is None:
         return error("Datos incompletos.")
     clave = d.get("clave")
+    if not isinstance(clave, list) or len(clave) != 3 or any(x not in C.DIBUJOS_CLAVE for x in clave):
+        return error("Tocá tus 3 dibujos secretos.")
     llave = f"al{aid}|{ip()}"
     espera = LIMITE_ALUMNO.bloqueado(llave)
     if espera:
@@ -530,6 +532,11 @@ def api_alumno_intento():
     if act["id"] not in permitidas:
         con.close()
         return error("Esa actividad no está disponible.", 403)
+    # Nadie termina una actividad en menos de 3 segundos: evita envíos repetidos (doble clic o programas)
+    ultimo = con.execute("SELECT MAX(fecha) FROM intentos WHERE alumno_id=?", (a["id"],)).fetchone()[0]
+    if ultimo and datetime.now() - datetime.strptime(ultimo, "%Y-%m-%d %H:%M:%S") < timedelta(seconds=ESPERA_INTENTO):
+        con.close()
+        return error("Esperá un momento antes de guardar otra vez.", 429)
 
     validos = items_validos(act, cfg)
     resp = d.get("respuestas")
@@ -692,10 +699,14 @@ def api_docente_configurar():
     if not es_local():
         con.close()
         return error("Las cuentas docentes se crean desde la computadora donde está instalado el juego.", 403)
-    nombre, usuario, pw = texto(d.get("nombre"), 60), texto(d.get("usuario"), 30).lower(), str(d.get("password") or "")
+    nombre = re.sub(r"\s+", " ", str(d.get("nombre") or "")).strip()
+    usuario, pw = str(d.get("usuario") or "").strip().lower(), str(d.get("password") or "")
     if not nombre:
         con.close()
         return error("Escribí tu nombre.")
+    if len(nombre) > 60 or not re.search(rf"[{LETRAS}]", nombre) or re.search(r"[<>\x00-\x1f]", nombre):
+        con.close()
+        return error("Tu nombre puede tener hasta 60 letras y no puede llevar los signos < o >.")
     if not re.fullmatch(r"[a-z0-9._-]{3,30}", usuario):
         con.close()
         return error("El usuario debe tener entre 3 y 30 letras o números, sin espacios.")
@@ -1042,9 +1053,11 @@ def api_docente_alumno_ficha(aid):
 @app.post("/api/docente/alumnos/<int:aid>/observaciones")
 @requiere("docente")
 def api_docente_obs_crear(aid):
-    t = texto(cuerpo().get("texto"), 1000)
+    t = str(cuerpo().get("texto") or "").strip()
     if not t:
         return error("Escribí la observación.")
+    if len(t) > 1000:
+        return error(f"La observación es muy larga ({len(t)} letras; el máximo es 1000).")
     con = con_db()
     if not con.execute("SELECT 1 FROM alumnos WHERE id=?", (aid,)).fetchone():
         con.close()
@@ -1266,9 +1279,20 @@ def textos(v, clave=None):
 SOLO_LETRAS = "a-zñáéíóúü"
 
 
+def dibujo(v, donde, que="el dibujo"):
+    """Emoji de un dibujo o figurita ("" si viene vacío). No se corta: un emoji cortado se ve roto."""
+    s = str(v or "").strip()
+    if not s:
+        return ""
+    con_letras = re.search(rf"[\s{LETRAS}<>&\"']", s) or (re.search(r"\d", s) and "⃣" not in s)  # 1️⃣ lleva un número
+    if len(s) > 12 or con_letras:
+        raise ValueError(f"{donde}: {que} tiene que ser un solo emoji (en Windows: tecla Windows + punto).")
+    return s
+
+
 def validar_item(tipo, it, donde):
     """Valida una fila de un juego. Devuelve el ítem limpio o lanza ValueError con el motivo."""
-    e = _s(it.get("e"), 8)
+    e = dibujo(it.get("e"), donde)
     if tipo == "oraciones":
         t = re.sub(r"\s+", " ", _s(it.get("t"), 140)).strip(" .")
         if not 3 <= len(t.split()) <= 10:
@@ -1282,7 +1306,7 @@ def validar_item(tipo, it, donde):
     if tipo == "rimas":
         c = it.get("c") if isinstance(it.get("c"), dict) else {}
         p, ct = _s(it.get("p"), 20).lower(), _s(c.get("t"), 20).lower()
-        x = [{"t": _s(o.get("t"), 20).lower(), "e": _s(o.get("e"), 8)}
+        x = [{"t": _s(o.get("t"), 20).lower(), "e": dibujo(o.get("e"), donde)}
              for o in (it.get("x") if isinstance(it.get("x"), list) else []) if isinstance(o, dict) and _s(o.get("t"))]
         if not p or not ct:
             raise ValueError(f"{donde}: falta la palabra o la palabra que rima.")
@@ -1290,7 +1314,7 @@ def validar_item(tipo, it, donde):
             raise ValueError(f"{donde}: agregá al menos una palabra que no rime.")
         if ct == p or any(o["t"] in (p, ct) for o in x) or len({o["t"] for o in x}) < len(x):
             raise ValueError(f"{donde}: hay palabras repetidas.")
-        return {"p": p, "e": e, "c": {"t": ct, "e": _s(c.get("e"), 8)}, "x": x[:2]}
+        return {"p": p, "e": e, "c": {"t": ct, "e": dibujo(c.get("e"), donde)}, "x": x[:2]}
     if tipo == "silabas":
         p = re.sub(r"\s*-\s*", "-", _s(it.get("p"), 40).lower())
         if not re.fullmatch(rf"[{SOLO_LETRAS}]{{1,5}}(-[{SOLO_LETRAS}]{{1,5}}){{1,4}}", p):
@@ -1342,7 +1366,7 @@ def validar_actividad(d):
         raise ValueError("El título puede tener hasta 60 letras.")
     if str(d.get("nivel", 1)) not in ("1", "2", "3"):
         raise ValueError("Elegí el nivel (1, 2 o 3).")
-    datos = {"titulo": titulo, "e": _s(d.get("e"), 8) or C.TIPOS[tipo]["i"], "sticker": _s(d.get("sticker"), 8) or "⭐",
+    datos = {"titulo": titulo, "e": dibujo(d.get("e"), "Datos generales") or C.TIPOS[tipo]["i"], "sticker": dibujo(d.get("sticker"), "Datos generales", "la figurita") or "⭐",
              "nivel": int(d.get("nivel", 1))}
     comprension = [k for k, v in C.TEMAS.items() if v["area"] == "Comprensión lectora"]
     if tipo == "cuento":
@@ -1396,6 +1420,11 @@ def validar_actividad(d):
     return tipo, {**datos, "items": items}
 
 
+def titulo_repetido(con, tipo, titulo, excepto=None):
+    return any(a["tipo"] == tipo and a["id"] != excepto and a["titulo"].strip().lower() == titulo.lower()
+               for a in todas_actividades(con))
+
+
 @app.post("/api/docente/actividades")
 @requiere("docente")
 def api_docente_actividad_crear():
@@ -1405,6 +1434,9 @@ def api_docente_actividad_crear():
     except ValueError as e:
         return error(str(e))
     con = con_db()
+    if titulo_repetido(con, tipo, datos["titulo"]):
+        con.close()
+        return error(f"Ya hay una actividad de este juego llamada «{datos['titulo']}». Elegí otro título.")
     yo = con.execute("SELECT nombre FROM docentes WHERE id=?", (session["uid"],)).fetchone()
     datos.update(estado="publicado" if d.get("publicar") else "borrador", autor=yo[0] if yo else None, actualizado=db.ahora())
     aid = "c-" + secrets.token_hex(4)
@@ -1427,6 +1459,12 @@ def api_docente_actividad_editar(aid):
     if not r:
         con.close()
         return error("Solo se pueden editar las actividades creadas por ustedes.", 403)
+    if r["tipo"] != tipo:
+        con.close()
+        return error("No se puede cambiar el tipo de una actividad. Creá una nueva.")
+    if titulo_repetido(con, tipo, datos["titulo"], aid):
+        con.close()
+        return error(f"Ya hay otra actividad de este juego llamada «{datos['titulo']}». Elegí otro título.")
     viejo = json.loads(r["datos"])
     yo = con.execute("SELECT nombre FROM docentes WHERE id=?", (session["uid"],)).fetchone()
     datos.update(estado="publicado" if d.get("publicar") else "borrador", autor=viejo.get("autor"),
@@ -1524,7 +1562,10 @@ def api_docente_config_guardar():
                 return error("Valor inválido para un ajuste.")
             cambios[k] = d[k]
     if "voz" in d:
-        cambios["voz"] = texto(d.get("voz"), 120)
+        voz = str(d.get("voz") or "").strip()
+        if len(voz) > 120 or re.search(r"[\x00-\x1f<>]", voz):
+            return error("El nombre de la voz no es válido.")
+        cambios["voz"] = voz
     if "temas_off" in d:
         if not isinstance(d["temas_off"], list):
             return error("Datos inválidos.")
@@ -1558,10 +1599,12 @@ def api_docente_docente_borrar(did):
         return error("No podés eliminar tu propia cuenta.")
     con = con_db()
     r = con.execute("SELECT usuario FROM docentes WHERE id=?", (did,)).fetchone()
-    if r:
-        con.execute("DELETE FROM docentes WHERE id=?", (did,))
-        yo = con.execute("SELECT usuario FROM docentes WHERE id=?", (session["uid"],)).fetchone()[0]
-        db.registrar(con, f"Cuenta docente eliminada: {r[0]}", yo, ip())
+    if not r:
+        con.close()
+        return error("Esa cuenta docente no existe.", 404)
+    con.execute("DELETE FROM docentes WHERE id=?", (did,))
+    yo = con.execute("SELECT usuario FROM docentes WHERE id=?", (session["uid"],)).fetchone()[0]
+    db.registrar(con, f"Cuenta docente eliminada: {r[0]}", yo, ip())
     con.close()
     return jsonify({"ok": True})
 
@@ -1573,6 +1616,12 @@ def api_docente_auditoria():
     out = [dict(r) for r in con.execute("SELECT fecha, usuario, evento, ip FROM auditoria ORDER BY id DESC LIMIT 40")]
     con.close()
     return jsonify(out)
+
+
+def celda(v):
+    """Texto para el CSV: si empieza con = + - @, Excel lo tomaría como fórmula; se le antepone un apóstrofo."""
+    s = str(v)
+    return "'" + s if s[:1] in ("=", "+", "-", "@", "\t", "\r") else s
 
 
 @app.get("/api/docente/exportar.csv")
@@ -1587,9 +1636,9 @@ def api_docente_exportar():
     for r in con.execute("SELECT i.*, a.nombre, a.grado, t.titulo tt FROM intentos i JOIN alumnos a ON a.id=i.alumno_id "
                          "LEFT JOIN tareas t ON t.id=i.tarea_id ORDER BY i.fecha"):
         act = acts.get(r["actividad_id"])
-        w.writerow([r["fecha"], r["nombre"], r["grado"], act["titulo"] if act else r["actividad_id"],
+        w.writerow([r["fecha"], celda(r["nombre"]), r["grado"], celda(act["titulo"] if act else r["actividad_id"]),
                     C.TIPOS.get(act["tipo"], {}).get("n", "") if act else "", r["aciertos"], r["total"],
-                    pct(r["aciertos"], r["total"]), r["estrellas"], round(r["segundos"] / 60, 1), r["tt"] or ""])
+                    pct(r["aciertos"], r["total"]), r["estrellas"], round(r["segundos"] / 60, 1), celda(r["tt"] or "")])
     con.close()
     datos = io.BytesIO(buf.getvalue().encode("utf-8-sig"))
     return send_file(datos, mimetype="text/csv", as_attachment=True,
@@ -1607,7 +1656,8 @@ def api_docente_copia():
     destino.close()
     db.registrar(con, "Descarga de copia de seguridad", None, ip())
     con.close()
-    datos = io.BytesIO(open(tmp.name, "rb").read())
+    with open(tmp.name, "rb") as f:
+        datos = io.BytesIO(f.read())
     os.unlink(tmp.name)
     return send_file(datos, mimetype="application/octet-stream", as_attachment=True,
                      download_name=f"copia-isla-{date.today().isoformat()}.db")

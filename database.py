@@ -7,7 +7,8 @@ import os
 import sqlite3
 from datetime import datetime
 
-CARPETA_DATOS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "datos")
+# ISLA_DATOS permite usar otra carpeta (las pruebas automáticas usan una temporal para no tocar los datos reales)
+CARPETA_DATOS = os.environ.get("ISLA_DATOS") or os.path.join(os.path.dirname(os.path.abspath(__file__)), "datos")
 RUTA_DB = os.path.join(CARPETA_DATOS, "isla.db")
 
 ESQUEMA = """
