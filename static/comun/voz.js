@@ -14,6 +14,9 @@ const Voz = (() => {
   const disponible = () => "speechSynthesis" in window;
   const voces = () => disponible() ? speechSynthesis.getVoices().filter(v => /^es/i.test(v.lang)) : [];
   const esNatural = v => /natural|online|neural/i.test(v.name);
+  // Voces que suenan especialmente cálidas y alegres para contar cuentos
+  const ALEGRES = /(elena|dalia|salom|paloma|google español de estados unidos)/i;
+  const esAlegre = v => ALEGRES.test(v.name);
 
   function puntaje(v) {
     let p = 0;
@@ -22,6 +25,7 @@ const Voz = (() => {
     if (/es[-_]AR/i.test(v.lang)) p += 20;
     else if (/es[-_](419|MX|US|CO|CL|UY|PE)/i.test(v.lang)) p += 12;
     if (FEMENINAS.test(v.name)) p += 18;
+    if (esAlegre(v)) p += 8;
     if (MASCULINAS.test(v.name)) p -= 40;
     return p;
   }
@@ -32,18 +36,24 @@ const Voz = (() => {
   }
   function etiqueta(v) {
     const genero = MASCULINAS.test(v.name) ? "voz masculina" : FEMENINAS.test(v.name) ? "voz femenina" : "";
-    return `${v.name.replace(/^Microsoft\s+/, "").replace(/\s*-\s*Spanish.*$/i, "")} (${v.lang}${genero ? " · " + genero : ""}${esNatural(v) ? " · natural ⭐" : ""})`;
+    return `${v.name.replace(/^Microsoft\s+/, "").replace(/\s*-\s*Spanish.*$/i, "")} (${v.lang}${genero ? " · " + genero : ""}${esNatural(v) ? " · natural ⭐" : ""}${esAlegre(v) ? " · alegre 😊" : ""})`;
   }
   function callar() { if (disponible()) speechSynthesis.cancel(); }
-  function hablar(texto, {lenta = false, fin = null, voz = null} = {}) {
+  function hablar(texto, {lenta = false, fin = null, voz = null, alegre = true} = {}) {
     if (!disponible()) { fin && fin(); return; }
     const u = new SpeechSynthesisUtterance(String(texto).replace(/[—«»]/g, " ").replace(/\s+/g, " ").trim());
     const v = voz || elegir();
     if (v) { u.voice = v; u.lang = v.lang; } else u.lang = "es-AR";
     const natural = v && esNatural(v);
-    // Las voces naturales suenan mejor a su velocidad; las clásicas, un poco más lentas y agudas = más suaves.
-    u.rate = natural ? (lenta ? .82 : .95) : (lenta ? .72 : .85);
-    u.pitch = natural ? 1 : 1.1;
+    // Tono alegre: un poco más aguda y con más ritmo, como cuando se cuenta un cuento a los chicos.
+    // Tono tranquilo: las naturales a su velocidad; las clásicas, más lentas y apenas agudas = más suaves.
+    if (alegre) {
+      u.rate = natural ? (lenta ? .88 : 1.02) : (lenta ? .8 : .93);
+      u.pitch = natural ? 1.12 : 1.25;
+    } else {
+      u.rate = natural ? (lenta ? .82 : .95) : (lenta ? .72 : .85);
+      u.pitch = natural ? 1 : 1.1;
+    }
     u.volume = 1;
     if (fin) u.onend = fin;
     speechSynthesis.speak(u);
@@ -51,7 +61,7 @@ const Voz = (() => {
   if (disponible()) speechSynthesis.getVoices();
 
   return {
-    voces, elegir, etiqueta, hablar, callar, esNatural, puntaje,
+    voces, elegir, etiqueta, hablar, callar, esNatural, esAlegre, puntaje,
     set preferida(n) { preferida = n || ""; },
     get preferida() { return preferida; },
   };

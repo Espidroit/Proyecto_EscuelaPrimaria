@@ -127,6 +127,7 @@ CONFIG_INICIAL = {
     "nivel3_para_2": False,   # mostrar actividades de nivel 3 a 2.º grado
     "auto_leer": True,        # leer en voz alta automáticamente
     "voz_lenta": False,
+    "voz_alegre": True,       # tono alegre: un poco más aguda y con más ritmo
     "sonido": True,
     "progresivo": True,       # desbloquear actividades de a una
     "voz": "",                # nombre de la voz elegida ("" = automática)

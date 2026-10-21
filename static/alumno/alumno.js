@@ -29,7 +29,7 @@ const JUEGOS_ELEGIR = ["completar", "opuestos", "ortografia", "clases"];
 function callar() { Voz.callar(); $$(".frase.leyendo").forEach(f => f.classList.remove("leyendo")); }
 function decir(t, fin) {
   Voz.preferida = P ? P.cfg.voz : "";
-  Voz.hablar(t, {lenta: !!(P && P.cfg.voz_lenta), fin});
+  Voz.hablar(t, {lenta: !!(P && P.cfg.voz_lenta), alegre: !P || P.cfg.voz_alegre !== false, fin});
 }
 let actx = null;
 function sonar(tipo) {

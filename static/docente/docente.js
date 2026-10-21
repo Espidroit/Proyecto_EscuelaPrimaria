@@ -652,6 +652,7 @@ async function pAjustes() {
       ${sw("nivel3_para_2", "Actividades de nivel 3 para 2.º grado", "Útil para chicos de 2.º que necesitan más desafío.")}
       ${sw("auto_leer", "Leer en voz alta automáticamente", "Cuentos, preguntas y consignas se leen solos al aparecer.")}
       ${sw("voz_lenta", "Voz más lenta", "La lectura en voz alta va más despacio.")}
+      ${sw("voz_alegre", "Voz alegre", "La voz habla un poco más aguda y con más ritmo, como cuando se cuenta un cuento. Si la apagás, suena más tranquila.")}
       <div class="interruptor" style="flex-direction:column;align-items:stretch">
         <div class="t"><b>Voz de lectura</b><small>Las voces marcadas con ⭐ «natural» suenan mucho menos robóticas. Las mejores aparecen al abrir el juego con <strong>Microsoft Edge</strong> (por ejemplo «Elena», de Argentina). La lista depende de esta computadora y de este navegador.</small></div>
         <div class="acciones" style="margin-top:8px"><select id="selVoz" data-voz-actual="${esc(cfg.voz || "")}" style="flex:1;min-width:220px"></select>
@@ -781,7 +782,9 @@ const A = {
   },
   probarVoz: () => {
     Voz.callar(); Voz.preferida = $("#selVoz").value;
-    Voz.hablar("¡Hola! Soy la voz de la Isla de los Cuentos. Había una vez un perrito llamado Bobi que encontró una pelota roja en el jardín.");
+    const sw = k => { const i = $(`[data-k="${k}"]`); return i ? i.checked : undefined; };
+    Voz.hablar("¡Hola, chicos! Soy la voz de la Isla de los Cuentos. ¿Saben qué? Había una vez un perrito llamado Bobi que encontró una pelota roja en el jardín. ¡Qué contento se puso!",
+               {lenta: !!sw("voz_lenta"), alegre: sw("voz_alegre") !== false});
   },
   guardarVoz: async () => { await llamar(() => api("/api/docente/config", {method: "PUT", body: {voz: $("#selVoz").value}}), "Voz guardada. Los chicos la van a escuchar en el juego."); },
   cfg: async el => { await llamar(() => api("/api/docente/config", {method: "PUT", body: {[el.dataset.k]: el.checked}}), "Ajuste guardado."); },

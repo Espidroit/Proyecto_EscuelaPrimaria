@@ -314,6 +314,11 @@ class TestAjustes(Base):
         self.rechaza("put", self.URL, {"temas_off": "rimas"}, 400, "inválidos")
         self.rechaza("put", self.URL, {"temas_off": list(C.TEMAS)}, 400, "al menos un tema")
         self.rechaza("put", self.URL, {"voz": "<script>"}, 400, "voz")
+        self.rechaza("put", self.URL, {"voz_alegre": "sí"}, 400, "inválido")
+        self.assertTrue(self.pedir("get", self.URL)[1]["cfg"]["voz_alegre"])  # alegre por defecto
+        self.acepta("put", self.URL, {"voz_alegre": False})
+        self.assertFalse(self.pedir("get", self.URL)[1]["cfg"]["voz_alegre"])
+        self.acepta("put", self.URL, {"voz_alegre": True})
         self.acepta("put", self.URL, {"sonido": False, "voz": "Microsoft Elena Online (Natural)"})
         self.acepta("put", self.URL, {"sonido": True, "voz": ""})
 
@@ -342,6 +347,7 @@ class TestChicos(Base):
         self.rechaza("post", "/api/alumno/ingresar", {"id": self.uno["id"], "clave": mala}, 403, "no son")
         A.LIMITE_ALUMNO.bloqueados.clear()
         self.entrar(self.uno)
+        self.assertIn("voz_alegre", self.pedir("get", "/api/alumno/perfil")[1]["cfg"])
         self.docente()
 
     def test_cada_grado_ve_sus_niveles_y_puede_jugar_todo(self):

@@ -462,7 +462,7 @@ def api_alumno_perfil():
         "estrellas": sum(mejores.values()), "hechas": len(mejores), "tareas_pendientes": pendientes,
         "medallas": [{**m, "fecha": meds.get(m["id"])} for m in C.MEDALLAS], "album": album,
         "cfg": {"mayus": a["grado"] == 1 and cfg["mayus_1"], "auto_leer": cfg["auto_leer"],
-                "voz_lenta": cfg["voz_lenta"], "sonido": cfg["sonido"], "voz": cfg["voz"]},
+                "voz_lenta": cfg["voz_lenta"], "voz_alegre": cfg["voz_alegre"], "sonido": cfg["sonido"], "voz": cfg["voz"]},
     }
     con.close()
     return jsonify(out)
@@ -1556,7 +1556,7 @@ def api_docente_config():
 def api_docente_config_guardar():
     d = cuerpo()
     cambios = {}
-    for k in ("mayus_1", "nivel2_para_1", "nivel3_para_2", "auto_leer", "voz_lenta", "sonido", "progresivo", "registro_abierto"):
+    for k in ("mayus_1", "nivel2_para_1", "nivel3_para_2", "auto_leer", "voz_lenta", "voz_alegre", "sonido", "progresivo", "registro_abierto"):
         if k in d:
             if not isinstance(d[k], bool):
                 return error("Valor inválido para un ajuste.")
