@@ -58,6 +58,10 @@ def con_db():
     return db.conectar()
 
 
+def existe(con, tabla, id_):
+    return con.execute(f"SELECT 1 FROM {tabla} WHERE id=?", (id_,)).fetchone() is not None
+
+
 def error(msg, codigo=400):
     return jsonify({"error": msg}), codigo
 
@@ -112,6 +116,57 @@ def texto(v, maximo=200):
     return str(v or "").strip()[:maximo]
 
 
+def entero(v, minimo, maximo):
+    """Número entero dentro del rango, o None si no lo es (no acepta True/False ni decimales)."""
+    if isinstance(v, bool):
+        return None
+    try:
+        n = int(str(v).strip())
+    except (TypeError, ValueError):
+        return None
+    return n if minimo <= n <= maximo else None
+
+
+def si_no(d, clave, actual):
+    """Valor de un interruptor: tiene que venir como true o false."""
+    v = d.get(clave, actual)
+    if not isinstance(v, bool):
+        raise ValueError("Valor inválido para «%s»." % clave)
+    return v
+
+
+LETRAS = "A-Za-zÁÉÍÓÚÜÑáéíóúüñ"
+RE_NOMBRE = re.compile(rf"[{LETRAS}][{LETRAS} .'-]*")
+
+
+def nombre_alumno(v):
+    """Nombre limpio, o lanza ValueError con el motivo."""
+    n = re.sub(r"\s+", " ", str(v or "")).strip()
+    if len(n) > 40:
+        raise ValueError(f"El nombre «{n[:40]}…» es muy largo (máximo 40 letras).")
+    if not RE_NOMBRE.fullmatch(n):
+        raise ValueError(f"El nombre «{n}» solo puede tener letras, espacios, puntos o guiones.")
+    return n
+
+
+def fecha_limite(v):
+    """Fecha AAAA-MM-DD que existe y no es anterior a hoy, o None si viene vacía."""
+    s = texto(v, 10)
+    if not s:
+        return None
+    try:
+        f = date.fromisoformat(s) if re.fullmatch(r"\d{4}-\d{2}-\d{2}", s) else None
+    except ValueError:
+        f = None
+    if not f:
+        raise ValueError("La fecha límite no es válida.")
+    if f < date.today():
+        raise ValueError("La fecha límite no puede ser anterior a hoy.")
+    if f > date.today() + timedelta(days=366):
+        raise ValueError("La fecha límite no puede ser dentro de más de un año.")
+    return s
+
+
 # =================================================================
 # Actividades (base + creadas por la docente)
 # =================================================================
@@ -142,10 +197,6 @@ def items_validos(act, cfg):
 
 def tema_juego_activo(act, cfg):
     return act["tipo"] == "cuento" or C.TIPOS[act["tipo"]]["tema"] not in cfg["temas_off"]
-
-
-def grado_valido(v):
-    return int(v) if str(v) in ("2", "3") else 1
 
 
 def niveles_para(grado, cfg):
@@ -226,13 +277,16 @@ def actividades_tarea(con, tarea_id, acts_por_id):
 
 
 def tareas_de_alumno(con, alumno, solo_activas=True):
-    acts_por_id = {a["id"]: a for a in todas_actividades(con)}
+    # Las actividades que volvieron a borrador no se muestran a los chicos (tampoco dentro de las tareas)
+    acts_por_id = {a["id"]: a for a in todas_actividades(con) if a.get("estado", "publicado") == "publicado"}
     res = []
     for t in con.execute("SELECT * FROM tareas WHERE archivada=0 ORDER BY creada DESC"):
         t = dict(t)
         if alumno["id"] not in asignados(con, t):
             continue
         acts = actividades_tarea(con, t["id"], acts_por_id)
+        if not acts:
+            continue
         hechas = {r[0]: r[1] for r in con.execute(
             "SELECT actividad_id, MAX(estrellas) FROM intentos WHERE alumno_id=? AND tarea_id=? GROUP BY actividad_id",
             (alumno["id"], t["id"]))}
@@ -509,7 +563,8 @@ def api_alumno_intento():
         monedas = (monedas + 1) // 2
     bonus = 15 if estrellas == 3 and previas < 3 else 0
     monedas += bonus
-    segundos = max(0, min(int(d.get("segundos") or 0), 3 * 3600))
+    segundos = entero(d.get("segundos") or 0, 0, 10 ** 9)
+    segundos = min(segundos, 3 * 3600) if segundos is not None else 0
     ahora = db.ahora()
 
     cur = con.execute("INSERT INTO intentos(alumno_id, actividad_id, tarea_id, fecha, aciertos, total, estrellas, monedas, segundos) "
@@ -598,6 +653,15 @@ def api_alumno_avatar():
 # =================================================================
 # API docente: acceso
 # =================================================================
+def problema_password(pw):
+    """Motivo por el que la contraseña no sirve, o None si está bien."""
+    if len(pw) < 8 or len(pw) > 128:
+        return "La contraseña debe tener entre 8 y 128 caracteres."
+    if not re.search(r"\d", pw) or not re.search(r"[^\W\d_]", pw):
+        return "La contraseña debe tener letras y números."
+    return None
+
+
 def es_local():
     return ip() in ("127.0.0.1", "::1", "localhost")
 
@@ -629,12 +693,15 @@ def api_docente_configurar():
         con.close()
         return error("Las cuentas docentes se crean desde la computadora donde está instalado el juego.", 403)
     nombre, usuario, pw = texto(d.get("nombre"), 60), texto(d.get("usuario"), 30).lower(), str(d.get("password") or "")
-    if not nombre or not re.fullmatch(r"[a-z0-9._-]{3,30}", usuario):
+    if not nombre:
+        con.close()
+        return error("Escribí tu nombre.")
+    if not re.fullmatch(r"[a-z0-9._-]{3,30}", usuario):
         con.close()
         return error("El usuario debe tener entre 3 y 30 letras o números, sin espacios.")
-    if len(pw) < 8 or pw.isdigit() or pw.isalpha():
+    if problema_password(pw):
         con.close()
-        return error("La contraseña debe tener al menos 8 caracteres, con letras y números.")
+        return error(problema_password(pw))
     if con.execute("SELECT 1 FROM docentes WHERE usuario=?", (usuario,)).fetchone():
         con.close()
         return error("Ese usuario ya existe. Elegí otro.")
@@ -657,7 +724,7 @@ def api_docente_ingresar():
         return error(f"Demasiados intentos. Esperá {espera // 60 + 1} minutos.", 429)
     con = con_db()
     r = con.execute("SELECT * FROM docentes WHERE usuario=?", (usuario,)).fetchone()
-    if not r or not seg.verificar(pw, r["pass_hash"]):
+    if not r or len(pw) > 128 or not seg.verificar(pw, r["pass_hash"]):
         LIMITE_DOCENTE.fallo(llave)
         db.registrar(con, "Intento de ingreso fallido", usuario, ip())
         con.close()
@@ -682,13 +749,16 @@ def api_docente_password():
     d = cuerpo()
     con = con_db()
     r = con.execute("SELECT * FROM docentes WHERE id=?", (session["uid"],)).fetchone()
-    if not seg.verificar(str(d.get("actual") or ""), r["pass_hash"]):
+    if len(str(d.get("actual") or "")) > 128 or not seg.verificar(str(d.get("actual") or ""), r["pass_hash"]):
         con.close()
         return error("La contraseña actual no es correcta.", 403)
     nueva = str(d.get("nueva") or "")
-    if len(nueva) < 8 or nueva.isdigit() or nueva.isalpha():
+    if problema_password(nueva):
         con.close()
-        return error("La nueva contraseña debe tener al menos 8 caracteres, con letras y números.")
+        return error("La nueva contraseña no sirve: " + problema_password(nueva)[0].lower() + problema_password(nueva)[1:])
+    if seg.verificar(nueva, r["pass_hash"]):
+        con.close()
+        return error("La nueva contraseña tiene que ser distinta de la actual.")
     con.execute("UPDATE docentes SET pass_hash=? WHERE id=?", (seg.hashear(nueva), r["id"]))
     db.registrar(con, "Cambio de contraseña", r["usuario"], ip())
     con.close()
@@ -819,18 +889,30 @@ def api_docente_alumnos():
 def api_docente_alumno_crear():
     d = cuerpo()
     nombres = d.get("nombres") if isinstance(d.get("nombres"), list) else [d.get("nombre")]
-    nombres = [texto(n, 40) for n in nombres if texto(n, 40)]
-    grado = grado_valido(d.get("grado"))
+    if str(d.get("grado")) not in ("1", "2", "3"):
+        return error("Elegí el grado (1.º, 2.º o 3.º).")
+    grado = int(d.get("grado"))
+    try:
+        nombres = [nombre_alumno(n) for n in nombres if str(n or "").strip()]
+    except ValueError as e:
+        return error(str(e))
     if not nombres:
         return error("Escribí el nombre del alumno.")
     if len(nombres) > 60:
         return error("Podés cargar hasta 60 alumnos por vez.")
+    vistos, dobles = set(), []
+    for n in nombres:
+        if n.lower() in vistos:
+            dobles.append(n)
+        vistos.add(n.lower())
+    if dobles:
+        return error("Escribiste dos veces: " + ", ".join(f"«{n}»" for n in dict.fromkeys(dobles)) + ". Agregá la inicial del apellido para distinguirlos.")
     con = con_db()
     existentes = {r[0].lower() for r in con.execute("SELECT nombre FROM alumnos")}
     repetidos = [n for n in nombres if n.lower() in existentes]
     if repetidos:
         con.close()
-        return error("Ya existe un alumno llamado: " + ", ".join(repetidos) + ". Agregá la inicial del apellido.")
+        return error("Ya existe un alumno con ese nombre: " + ", ".join(f"«{n}»" for n in repetidos) + ". Agregá la inicial del apellido.")
     for n in nombres:
         av = dict(C.AVATAR_INICIAL)
         av["piel"] = secrets.choice(["p1", "p2", "p3", "p4", "p5", "p6"])
@@ -853,12 +935,19 @@ def api_docente_alumno_editar(aid):
     if not a:
         con.close()
         return error("No existe.", 404)
-    nombre = texto(d.get("nombre"), 40) or a["nombre"]
+    try:
+        nombre = nombre_alumno(d["nombre"]) if "nombre" in d else a["nombre"]
+        activo = int(si_no(d, "activo", bool(a["activo"])))
+    except ValueError as e:
+        con.close()
+        return error(str(e))
+    if str(d.get("grado", a["grado"])) not in ("1", "2", "3"):
+        con.close()
+        return error("Elegí el grado (1.º, 2.º o 3.º).")
+    grado = int(d.get("grado", a["grado"]))
     if con.execute("SELECT 1 FROM alumnos WHERE lower(nombre)=lower(?) AND id<>?", (nombre, aid)).fetchone():
         con.close()
         return error("Ya existe otro alumno con ese nombre.")
-    grado = grado_valido(d.get("grado", a["grado"]))
-    activo = 1 if d.get("activo", bool(a["activo"])) else 0
     con.execute("UPDATE alumnos SET nombre=?, grado=?, activo=? WHERE id=?", (nombre, grado, activo, aid))
     con.commit()
     con.close()
@@ -869,6 +958,9 @@ def api_docente_alumno_editar(aid):
 @requiere("docente")
 def api_docente_alumno_clave(aid):
     con = con_db()
+    if not existe(con, "alumnos", aid):
+        con.close()
+        return error("Ese alumno no existe.", 404)
     c = clave_nueva()
     con.execute("UPDATE alumnos SET clave=? WHERE id=?", (json.dumps(c, ensure_ascii=False), aid))
     con.commit()
@@ -880,6 +972,9 @@ def api_docente_alumno_clave(aid):
 @requiere("docente")
 def api_docente_alumno_reiniciar(aid):
     con = con_db()
+    if not existe(con, "alumnos", aid):
+        con.close()
+        return error("Ese alumno no existe.", 404)
     for t in ("respuestas", "intentos", "medallas", "inventario", "tarea_entregas"):
         con.execute(f"DELETE FROM {t} WHERE alumno_id=?", (aid,))
     con.execute("UPDATE alumnos SET monedas=0, xp=0, avatar=? WHERE id=?", (json.dumps(C.AVATAR_INICIAL), aid))
@@ -892,6 +987,9 @@ def api_docente_alumno_reiniciar(aid):
 @requiere("docente")
 def api_docente_alumno_borrar(aid):
     con = con_db()
+    if not existe(con, "alumnos", aid):
+        con.close()
+        return error("Ese alumno no existe.", 404)
     con.execute("DELETE FROM alumnos WHERE id=?", (aid,))
     con.commit()
     con.close()
@@ -961,6 +1059,9 @@ def api_docente_obs_crear(aid):
 @requiere("docente")
 def api_docente_obs_borrar(oid):
     con = con_db()
+    if not existe(con, "observaciones", oid):
+        con.close()
+        return error("Esa observación ya no existe.", 404)
     con.execute("DELETE FROM observaciones WHERE id=?", (oid,))
     con.commit()
     con.close()
@@ -996,24 +1097,34 @@ def api_docente_tareas():
 @requiere("docente")
 def api_docente_tarea_crear():
     d = cuerpo()
-    titulo = texto(d.get("titulo"), 80)
+    titulo = re.sub(r"\s+", " ", texto(d.get("titulo"), 80))
     consigna = texto(d.get("consigna"), 400)
-    limite = texto(d.get("fecha_limite"), 10) or None
-    destino = d.get("destino") if d.get("destino") in DESTINOS else "todos"
-    try:
-        recompensa = max(0, min(int(d.get("recompensa", 30)), 200))
-    except (TypeError, ValueError):
-        recompensa = 30
+    destino = d.get("destino", "todos")
+    recompensa = entero(d.get("recompensa", 30), 0, 200)
+    elegidas = d.get("actividades") or []
     if not titulo:
         return error("Poné un título a la tarea.")
-    if limite and not re.fullmatch(r"\d{4}-\d{2}-\d{2}", limite):
-        return error("La fecha límite no es válida.")
+    if len(str(d.get("titulo") or "").strip()) > 80 or len(str(d.get("consigna") or "").strip()) > 400:
+        return error("El título puede tener hasta 80 letras y la consigna hasta 400.")
+    if destino not in DESTINOS:
+        return error("Elegí para quién es la tarea.")
+    if recompensa is None:
+        return error("El premio tiene que ser un número entero entre 0 y 200.")
+    if not isinstance(elegidas, list) or not isinstance(d.get("alumnos") or [], list):
+        return error("Datos inválidos.")
+    try:
+        limite = fecha_limite(d.get("fecha_limite"))
+    except ValueError as e:
+        return error(str(e))
     con = con_db()
     ids_validos = {a["id"] for a in todas_actividades(con) if a.get("estado", "publicado") == "publicado"}
-    acts = [x for x in (d.get("actividades") or []) if x in ids_validos][:12]
+    acts = list(dict.fromkeys(x for x in elegidas if x in ids_validos))
     if not acts:
         con.close()
         return error("Elegí al menos una actividad.")
+    if len(acts) > 12:
+        con.close()
+        return error("Una tarea puede tener hasta 12 actividades.")
     alumnos = []
     if destino == "elegidos":
         validos = {r[0] for r in con.execute("SELECT id FROM alumnos WHERE activo=1")}
@@ -1021,9 +1132,13 @@ def api_docente_tarea_crear():
         if not alumnos:
             con.close()
             return error("Elegí al menos un alumno.")
+    elif destino != "todos" and not con.execute(
+            "SELECT 1 FROM alumnos WHERE activo=1 AND grado=?", (int(destino[-1]),)).fetchone():
+        con.close()
+        return error(f"No hay alumnos activos en {DESTINOS[destino]}.")
     cur = con.execute("INSERT INTO tareas(titulo, consigna, fecha_limite, destino, recompensa, creada) VALUES(?,?,?,?,?,?)",
                       (titulo, consigna, limite, destino, recompensa, db.ahora()))
-    for i, a in enumerate(dict.fromkeys(acts)):
+    for i, a in enumerate(acts):
         con.execute("INSERT INTO tarea_actividades VALUES(?,?,?)", (cur.lastrowid, a, i))
     for a in alumnos:
         con.execute("INSERT OR IGNORE INTO tarea_alumnos VALUES(?,?)", (cur.lastrowid, a))
@@ -1061,6 +1176,9 @@ def api_docente_tarea_ver(tid):
 @requiere("docente")
 def api_docente_tarea_archivar(tid):
     con = con_db()
+    if not existe(con, "tareas", tid):
+        con.close()
+        return error("Esa tarea no existe.", 404)
     con.execute("UPDATE tareas SET archivada=1-archivada WHERE id=?", (tid,))
     con.commit()
     con.close()
@@ -1071,6 +1189,9 @@ def api_docente_tarea_archivar(tid):
 @requiere("docente")
 def api_docente_tarea_borrar(tid):
     con = con_db()
+    if not existe(con, "tareas", tid):
+        con.close()
+        return error("Esa tarea no existe.", 404)
     con.execute("UPDATE intentos SET tarea_id=NULL WHERE tarea_id=?", (tid,))
     con.execute("DELETE FROM tareas WHERE id=?", (tid,))
     con.commit()
@@ -1119,18 +1240,94 @@ def _s(v, n=120):
     return texto(v, n)
 
 
-def opciones(it, n):
-    """Opciones de un ítem de elegir: la primera es la correcta; sin vacías ni repetidas."""
-    o = it.get("o")
-    if not isinstance(o, list) or not o or not _s(o[0], n):
-        return []
-    vistas, out = set(), []
-    for x in o:
-        x = _s(x, n)
-        if x and x.lower() not in vistas:
-            vistas.add(x.lower())
-            out.append(x)
-    return out[:3]
+def opciones(it, n, donde):
+    """Opciones de un ítem de elegir: la primera es la correcta. Lanza ValueError si faltan o se repiten."""
+    o = it.get("o") if isinstance(it.get("o"), list) else []
+    o = [_s(x, n) for x in o]
+    if not o or not o[0]:
+        raise ValueError(f"{donde}: falta la respuesta correcta (va en el primer casillero).")
+    limpias = [x for x in o if x]
+    if len({x.lower() for x in limpias}) < len(limpias):
+        raise ValueError(f"{donde}: hay opciones repetidas.")
+    if len(limpias) < 2:
+        raise ValueError(f"{donde}: agregá al menos una opción incorrecta.")
+    return limpias[:3]
+
+
+def textos(v, clave=None):
+    """Todos los textos escritos en un ítem (sin contar dibujos ni listas desplegables)."""
+    if isinstance(v, dict):
+        return [t for k, x in v.items() for t in textos(x, k)]
+    if isinstance(v, list):
+        return [t for x in v for t in textos(x, clave)]
+    return [] if clave in ("e", "r", "c") or not isinstance(v, str) else [v.strip()]
+
+
+SOLO_LETRAS = "a-zñáéíóúü"
+
+
+def validar_item(tipo, it, donde):
+    """Valida una fila de un juego. Devuelve el ítem limpio o lanza ValueError con el motivo."""
+    e = _s(it.get("e"), 8)
+    if tipo == "oraciones":
+        t = re.sub(r"\s+", " ", _s(it.get("t"), 140)).strip(" .")
+        if not 3 <= len(t.split()) <= 10:
+            raise ValueError(f"{donde}: la oración tiene que tener entre 3 y 10 palabras.")
+        return {"e": e or "📝", "t": t}
+    if tipo == "palabras":
+        p = _s(it.get("p"), 20).lower()
+        if not re.fullmatch(rf"[{SOLO_LETRAS}]{{2,10}}", p):
+            raise ValueError(f"{donde}: escribí una sola palabra, solo con letras (de 2 a 10).")
+        return {"e": e or "🔤", "p": p}
+    if tipo == "rimas":
+        c = it.get("c") if isinstance(it.get("c"), dict) else {}
+        p, ct = _s(it.get("p"), 20).lower(), _s(c.get("t"), 20).lower()
+        x = [{"t": _s(o.get("t"), 20).lower(), "e": _s(o.get("e"), 8)}
+             for o in (it.get("x") if isinstance(it.get("x"), list) else []) if isinstance(o, dict) and _s(o.get("t"))]
+        if not p or not ct:
+            raise ValueError(f"{donde}: falta la palabra o la palabra que rima.")
+        if not x:
+            raise ValueError(f"{donde}: agregá al menos una palabra que no rime.")
+        if ct == p or any(o["t"] in (p, ct) for o in x) or len({o["t"] for o in x}) < len(x):
+            raise ValueError(f"{donde}: hay palabras repetidas.")
+        return {"p": p, "e": e, "c": {"t": ct, "e": _s(c.get("e"), 8)}, "x": x[:2]}
+    if tipo == "silabas":
+        p = re.sub(r"\s*-\s*", "-", _s(it.get("p"), 40).lower())
+        if not re.fullmatch(rf"[{SOLO_LETRAS}]{{1,5}}(-[{SOLO_LETRAS}]{{1,5}}){{1,4}}", p):
+            raise ValueError(f"{donde}: separá la palabra en sílabas con guiones, de 2 a 5 sílabas (ej.: ma-ri-po-sa).")
+        return {"e": e or "👏", "p": p}
+    if tipo == "ortografia":
+        p = _s(it.get("p"), 16).lower()
+        if p.count("_") != 1 or not re.fullmatch(rf"[{SOLO_LETRAS}]*_[{SOLO_LETRAS}]*", p) or len(p) < 3:
+            raise ValueError(f"{donde}: escribí la palabra con un solo _ donde va la letra (ej.: ca_a).")
+        o = [x.lower() for x in opciones(it, 3, donde)]
+        if not all(re.fullmatch(rf"[{SOLO_LETRAS}]{{1,3}}", x) for x in o):
+            raise ValueError(f"{donde}: las opciones tienen que ser letras (hasta 3, como «ll» o «rr»).")
+        return {"e": e or "🖍️", "p": p, "o": o}
+    if tipo == "completar":
+        t = re.sub(r"_+", "_", re.sub(r"\s+", " ", _s(it.get("t"), 140))).strip(" .")
+        if t.count("_") != 1 or len(t) < 6:
+            raise ValueError(f"{donde}: escribí la oración con un solo _ donde va la palabra que falta.")
+        return {"e": e or "📌", "t": t, "o": opciones(it, 30, donde)}
+    if tipo == "opuestos":
+        p = _s(it.get("p"), 30).lower()
+        if not p:
+            raise ValueError(f"{donde}: falta la palabra.")
+        o = opciones(it, 30, donde)
+        if o[0].lower() == p:
+            raise ValueError(f"{donde}: la respuesta no puede ser la misma palabra.")
+        return {"e": e or "🔄", "p": p, "r": "parecido" if it.get("r") == "parecido" else "opuesto", "o": o}
+    if tipo == "clases":
+        p = _s(it.get("p"), 30)
+        t = re.sub(r"\s+", " ", _s(it.get("t"), 140)).strip(" .")
+        if not p or " " in p:
+            raise ValueError(f"{donde}: escribí una sola palabra.")
+        if it.get("c") not in C.CLASES:
+            raise ValueError(f"{donde}: elegí la clase de palabra.")
+        if t and not re.search(rf"(?<![{LETRAS}]){re.escape(p)}(?![{LETRAS}])", t, re.IGNORECASE):
+            raise ValueError(f"{donde}: la oración de ejemplo tiene que incluir la palabra «{p}».")
+        return {"e": e or "🏷️", "p": p, "c": it["c"], **({"t": t} if t else {})}
+    raise ValueError("Tipo de actividad inválido.")
 
 
 def validar_actividad(d):
@@ -1138,95 +1335,65 @@ def validar_actividad(d):
     tipo = d.get("tipo")
     if tipo not in C.TIPOS:
         raise ValueError("Tipo de actividad inválido.")
-    titulo = _s(d.get("titulo"), 60)
+    titulo = re.sub(r"\s+", " ", str(d.get("titulo") or "")).strip()
     if not titulo:
         raise ValueError("Falta el título.")
+    if len(titulo) > 60:
+        raise ValueError("El título puede tener hasta 60 letras.")
+    if str(d.get("nivel", 1)) not in ("1", "2", "3"):
+        raise ValueError("Elegí el nivel (1, 2 o 3).")
     datos = {"titulo": titulo, "e": _s(d.get("e"), 8) or C.TIPOS[tipo]["i"], "sticker": _s(d.get("sticker"), 8) or "⭐",
-             "nivel": int(d.get("nivel")) if str(d.get("nivel")) in ("2", "3") else 1}
+             "nivel": int(d.get("nivel", 1))}
     comprension = [k for k, v in C.TEMAS.items() if v["area"] == "Comprensión lectora"]
     if tipo == "cuento":
-        txt = re.sub(r"\s+", " ", _s(d.get("texto"), 2500))
+        txt = re.sub(r"\s+", " ", str(d.get("texto") or "")).strip()
         if len(txt) < 20:
             raise ValueError("El texto del cuento es muy corto.")
+        if len(txt) > 2500:
+            raise ValueError(f"El texto del cuento es muy largo ({len(txt)} letras; el máximo es 2500).")
         preguntas = []
-        for i, q in enumerate(d.get("preguntas") or [], 1):
+        for i, q in enumerate(d.get("preguntas") if isinstance(d.get("preguntas"), list) else [], 1):
             if not isinstance(q, dict):
                 continue
             t = q.get("t")
             if t == "o":
-                items = [_s(x) for x in q.get("items") or [] if _s(x)]
-                if len(items) >= 3:
-                    preguntas.append({"t": "o", "tema": "secuencia", "items": items[:5]})
+                items = [_s(x) for x in (q.get("items") if isinstance(q.get("items"), list) else []) if _s(x)]
+                if not items:
+                    continue
+                if len(items) < 3:
+                    raise ValueError("Orden de los hechos: completá al menos 3 partes (o dejalo vacío).")
+                if len({x.lower() for x in items}) < len(items):
+                    raise ValueError("Orden de los hechos: hay partes repetidas.")
+                preguntas.append({"t": "o", "tema": "secuencia", "items": items[:5]})
                 continue
             tema = q.get("tema") if q.get("tema") in comprension else "detalles"
             p = _s(q.get("p"), 200)
             if not p:
+                if t != "vf" and any(textos(q.get("o"))):
+                    raise ValueError(f"Pregunta {i}: falta escribir la pregunta.")
                 continue
             if t == "vf":
-                preguntas.append({"t": "vf", "tema": tema, "p": p, "v": bool(q.get("v"))})
+                if not isinstance(q.get("v"), bool):
+                    raise ValueError(f"Pregunta {i}: elegí si la oración es verdadera o falsa.")
+                preguntas.append({"t": "vf", "tema": tema, "p": p, "v": q["v"]})
             else:
-                o = [_s(x) for x in q.get("o") or []]
-                if not o or not o[0] or len([x for x in o if x]) < 2:
-                    raise ValueError(f"La pregunta {i} necesita la respuesta correcta y al menos una incorrecta.")
-                preguntas.append({"t": "e", "tema": tema, "p": p, "o": [x for x in o if x][:3]})
-        if len(preguntas) < 2:
+                preguntas.append({"t": "e", "tema": tema, "p": p, "o": opciones(q, 120, f"Pregunta {i}")})
+        if len([q for q in preguntas if q["t"] != "o"]) < 2:
             raise ValueError("Agregá al menos 2 preguntas completas.")
-        datos.update({"texto": txt, "preguntas": preguntas[:12]})
+        if len(preguntas) > 12:
+            raise ValueError("Un cuento puede tener hasta 12 preguntas.")
+        datos.update({"texto": txt, "preguntas": preguntas})
         return tipo, datos
     items = []
-    for it in d.get("items") or []:
-        if not isinstance(it, dict):
-            continue
-        if tipo == "oraciones":
-            t = re.sub(r"\s+", " ", _s(it.get("t"), 120)).strip(" .")
-            if 3 <= len(t.split()) <= 10:
-                items.append({"e": _s(it.get("e"), 8) or "📝", "t": t})
-        elif tipo == "palabras":
-            p = _s(it.get("p"), 12).lower()
-            if re.fullmatch(r"[a-zñáéíóúü]{2,10}", p):
-                items.append({"e": _s(it.get("e"), 8) or "🔤", "p": p})
-        elif tipo == "rimas":
-            p, c = _s(it.get("p"), 20).lower(), _s((it.get("c") or {}).get("t"), 20).lower()
-            x = [{"t": _s(o.get("t"), 20).lower(), "e": _s(o.get("e"), 8)} for o in it.get("x") or [] if isinstance(o, dict) and _s(o.get("t"))]
-            if p and c and x:
-                items.append({"p": p, "e": _s(it.get("e"), 8), "c": {"t": c, "e": _s((it.get("c") or {}).get("e"), 8)}, "x": x[:2]})
-        elif tipo == "silabas":
-            p = re.sub(r"\s*-\s*", "-", _s(it.get("p"), 40).lower())
-            if re.fullmatch(r"[a-zñáéíóúü]{1,5}(-[a-zñáéíóúü]{1,5}){1,4}", p):
-                items.append({"e": _s(it.get("e"), 8) or "👏", "p": p})
-        elif tipo == "ortografia":
-            p = _s(it.get("p"), 16).lower()
-            o = [x.lower() for x in opciones(it, 3)]
-            if re.fullmatch(r"[a-zñáéíóúü]*_[a-zñáéíóúü]*", p) and len(p) >= 3 and len(o) >= 2 \
-                    and all(re.fullmatch(r"[a-zñáéíóúü]{1,3}", x) for x in o):
-                items.append({"e": _s(it.get("e"), 8) or "🖍️", "p": p, "o": o})
-        elif tipo == "completar":
-            t = re.sub(r"_+", "_", re.sub(r"\s+", " ", _s(it.get("t"), 140))).strip(" .")
-            o = opciones(it, 30)
-            if t.count("_") == 1 and len(t) >= 6 and len(o) >= 2:
-                items.append({"e": _s(it.get("e"), 8) or "📌", "t": t, "o": o})
-        elif tipo == "opuestos":
-            p = _s(it.get("p"), 30).lower()
-            o = opciones(it, 30)
-            if p and len(o) >= 2:
-                items.append({"e": _s(it.get("e"), 8) or "🔄", "p": p,
-                              "r": "parecido" if it.get("r") == "parecido" else "opuesto", "o": o})
-        elif tipo == "clases":
-            p = _s(it.get("p"), 30)
-            t = re.sub(r"\s+", " ", _s(it.get("t"), 140)).strip(" .")
-            if p and it.get("c") in C.CLASES:
-                items.append({"e": _s(it.get("e"), 8) or "🏷️", "p": p, "c": it["c"], **({"t": t} if t else {})})
+    for n, it in enumerate(d.get("items") if isinstance(d.get("items"), list) else [], 1):
+        if not isinstance(it, dict) or not any(textos(it)):
+            continue  # fila vacía: se ignora
+        items.append(validar_item(tipo, it, f"Fila {n}"))
     if len(items) < 3:
-        raise ValueError({"oraciones": "Escribí al menos 3 oraciones (de 3 a 10 palabras cada una).",
-                          "palabras": "Escribí al menos 3 palabras (solo letras, de 2 a 10 letras).",
-                          "rimas": "Completá al menos 3 rimas con la palabra, la que rima y una que no rima.",
-                          "silabas": "Escribí al menos 3 palabras separadas en sílabas con guiones (ej.: ma-ri-po-sa).",
-                          "ortografia": "Completá al menos 3 palabras con un _ donde va la letra, la letra correcta y al menos una incorrecta.",
-                          "completar": "Completá al menos 3 oraciones con un _ en el hueco, la palabra correcta y al menos una incorrecta.",
-                          "opuestos": "Completá al menos 3 palabras con la respuesta correcta y al menos una incorrecta.",
-                          "clases": "Completá al menos 3 palabras eligiendo su clase."}[tipo])
-    datos["items"] = items[:12]
-    return tipo, datos
+        raise ValueError(f"Completá al menos 3 filas (hay {len(items)}).")
+    if len(items) > 12:
+        raise ValueError("Una actividad puede tener hasta 12 filas.")
+    return tipo, {**datos, "items": items}
 
 
 @app.post("/api/docente/actividades")
@@ -1274,6 +1441,9 @@ def api_docente_actividad_editar(aid):
 @requiere("docente")
 def api_docente_actividad_borrar(aid):
     con = con_db()
+    if not existe(con, "actividades_custom", aid):
+        con.close()
+        return error("Solo se pueden borrar las actividades creadas por ustedes.", 403)
     con.execute("DELETE FROM actividades_custom WHERE id=?", (aid,))
     con.execute("DELETE FROM tarea_actividades WHERE actividad_id=?", (aid,))
     con.commit()
@@ -1304,10 +1474,16 @@ def api_docente_actividad_estado(aid):
 @app.post("/api/docente/actividades/<aid>/visible")
 @requiere("docente")
 def api_docente_actividad_visible(aid):
+    visible = cuerpo().get("visible")
+    if not isinstance(visible, bool):
+        return error("Valor inválido.")
     con = con_db()
+    if not actividad(con, aid):
+        con.close()
+        return error("Esa actividad no existe.", 404)
     cfg = db.leer_config(con)
     ocultas = set(cfg["ocultas"])
-    if cuerpo().get("visible"):
+    if visible:
         ocultas.discard(aid)
     else:
         ocultas.add(aid)
@@ -1344,10 +1520,14 @@ def api_docente_config_guardar():
     cambios = {}
     for k in ("mayus_1", "nivel2_para_1", "nivel3_para_2", "auto_leer", "voz_lenta", "sonido", "progresivo", "registro_abierto"):
         if k in d:
-            cambios[k] = bool(d[k])
+            if not isinstance(d[k], bool):
+                return error("Valor inválido para un ajuste.")
+            cambios[k] = d[k]
     if "voz" in d:
         cambios["voz"] = texto(d.get("voz"), 120)
-    if "temas_off" in d and isinstance(d["temas_off"], list):
+    if "temas_off" in d:
+        if not isinstance(d["temas_off"], list):
+            return error("Datos inválidos.")
         off = [t for t in d["temas_off"] if t in C.TEMAS]
         if len(off) >= len(C.TEMAS):
             return error("Tiene que quedar al menos un tema activo.")

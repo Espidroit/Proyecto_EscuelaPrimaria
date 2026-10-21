@@ -126,7 +126,7 @@ window.addEventListener("hashchange", navegar);
    ========================================================= */
 const campoPass = (name, label, auto, ayuda = "") => `
   <div class="campo"><label>${label}</label>
-    <div class="pass-wrap"><input type="password" name="${name}" autocomplete="${auto}" required>
+    <div class="pass-wrap"><input type="password" name="${name}" autocomplete="${auto}" maxlength="128" required>
       <button type="button" class="ver-pass" data-act="verPass" aria-label="Mostrar contraseña" title="Mostrar contraseña">${ic("ojo")}<span>Ver</span></button></div>
     ${ayuda ? `<small>${ayuda}</small>` : ""}</div>`;
 
@@ -148,7 +148,7 @@ function vConfigurar(local, nueva = false) {
     <h1>${nueva ? "Crear mi cuenta docente" : "Crear la cuenta docente"}</h1>
     ${local ? `<p>${nueva ? "Vas a compartir el mismo grupo, los alumnos y las tareas, pero con tu propio usuario y contraseña." : "Esta cuenta protege el panel donde vas a ver el progreso de los chicos y dejar tareas."}</p>
     <div class="campo"><label>Tu nombre</label><input type="text" name="nombre" placeholder="Ej.: Seño Laura" required></div>
-    <div class="campo"><label>Usuario</label><input type="text" name="usuario" placeholder="Ej.: laura" required><small>Sin espacios. Solo letras, números, punto o guion.</small></div>
+    <div class="campo"><label>Usuario</label><input type="text" name="usuario" placeholder="Ej.: laura" minlength="3" maxlength="30" pattern="[A-Za-z0-9._-]+" required><small>Sin espacios. Solo letras, números, punto o guion.</small></div>
     ${campoPass("password", "Contraseña", "new-password", "Mínimo 8 caracteres, con letras y números.")}
     ${campoPass("password2", "Repetir contraseña", "new-password")}
     <div class="error-form" id="err"></div><button class="btn" type="submit">Crear cuenta</button>
@@ -345,8 +345,8 @@ async function pTareaNueva() {
     <section class="panel"><div class="panel-h"><h2>1. Datos de la tarea</h2></div><div class="panel-b">
       <div class="campo"><label>Título</label><input type="text" name="titulo" maxlength="80" placeholder="Ej.: Practicamos personajes" required></div>
       <div class="campo"><label>Consigna para los chicos</label><textarea name="consigna" maxlength="400" placeholder="Ej.: Leé el cuento con atención y pensá quién es el protagonista. ¡Vos podés!"></textarea><small>Los chicos pueden escucharla en voz alta.</small></div>
-      <div class="f2"><div class="campo"><label>Fecha límite</label><input type="date" name="fecha_limite" value="${manana}"></div>
-      <div class="campo"><label>Premio al terminar (monedas)</label><input type="number" name="recompensa" min="0" max="200" value="30"></div></div>
+      <div class="f2"><div class="campo"><label>Fecha límite</label><input type="date" name="fecha_limite" value="${manana}" min="${new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10)}"></div>
+      <div class="campo"><label>Premio al terminar (monedas)</label><input type="number" name="recompensa" min="0" max="200" step="1" value="30" required></div></div>
     </div></section>
     <section class="panel"><div class="panel-h"><h2>2. ¿Para quién es?</h2></div><div class="panel-b">
       ${[["todos", "Todo el grupo"], ["grado1", "Solo 1.º grado"], ["grado2", "Solo 2.º grado"], ["grado3", "Solo 3.º grado"], ["elegidos", "Algunos alumnos"]].map(([v, t], i) => `
