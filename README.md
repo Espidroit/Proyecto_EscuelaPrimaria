@@ -35,6 +35,12 @@ La docente tiene un **panel aparte, protegido con usuario y contraseña**, donde
 
 El juego se usa **solo en la escuela**, en las computadoras del aula (`iniciar_en_red.bat` para varias a la vez). No se usa desde casa: así lo que registra es lo que el chico hace solo, y la docente ve su rendimiento real. Por eso, en lugar de «tareas para casa», la seño prepara **misiones** para hacer en clase.
 
+## Si una docente se olvida la contraseña
+
+1. **Con su código de recuperación** (el panel lo muestra al crear la cuenta y se puede generar otro en **Ajustes → Mi cuenta**): en la pantalla de ingreso, **«¿Olvidaste tu contraseña?»**, escribir usuario, código y contraseña nueva.
+2. **Desde otra cuenta docente:** **Ajustes → Docentes → Restablecer contraseña** da una contraseña temporal; al entrar con ella, el panel pide elegir una nueva.
+3. **Si hay una sola cuenta y no tiene el código:** doble clic en **`recuperar_cuenta.bat`** en la computadora del juego (en PythonAnywhere: `python3 recuperar_cuenta.py` desde una consola Bash, en la carpeta del proyecto).
+
 ## Qué hay en el juego (chicos)
 
 - **📚 Cuentos** (15 incluidos: 6 de nivel 1, 5 de nivel 2 y 4 de nivel 3): lectura con voz, preguntas de personajes, lugar y tiempo, datos del texto, vocabulario, sentimientos, inferencias y orden de los hechos.

@@ -578,5 +578,57 @@ class TestAvatarGratis(unittest.TestCase):
             self.assertTrue(any(i["precio"] or i["nivel"] or i["medalla"] for i in C.CATALOGO if i["cat"] == cat), cat)
 
 
+# =================================================================
+class TestRecuperarContrasena(Base):
+    """Código de recuperación, restablecer desde otra cuenta y cambio obligatorio."""
+
+    def otra_cuenta(self, usuario):
+        A.LIMITE_DOCENTE.bloqueados.clear()
+        c = A.app.test_client()
+        r = c.post("/api/docente/configurar", json={"nombre": "Otra Seño", "usuario": usuario, "password": "clave1234", "grados": [1]},
+                   headers={"X-Isla": "1"}, environ_base={"REMOTE_ADDR": "127.0.0.1"})
+        self.assertEqual(r.status_code, 200, r.get_json())
+        return c, r.get_json()
+
+    def test_codigo_al_crear_y_recuperar(self):
+        c, j = self.otra_cuenta("conrecu")
+        codigo = j["codigo"]
+        self.assertRegex(codigo, r"^ISLA-[A-Z2-9]{4}-[A-Z2-9]{4}$")
+        nueva = A.app.test_client()
+        pedir = lambda body: nueva.post("/api/docente/recuperar", json=body, headers={"X-Isla": "1"},
+                                        environ_base={"REMOTE_ADDR": "127.0.0.9"})
+        self.assertEqual(pedir({"usuario": "conrecu", "codigo": "ISLA-AAAA-AAAA", "nueva": "otra1234"}).status_code, 403)
+        self.assertEqual(pedir({"usuario": "conrecu", "codigo": codigo, "nueva": "corta"}).status_code, 400)
+        r = pedir({"usuario": "conrecu", "codigo": codigo.lower().replace("-", " "), "nueva": "otra1234"})
+        self.assertEqual(r.status_code, 200, r.get_json())
+        self.assertNotEqual(r.get_json()["codigo"], codigo)               # se entrega uno nuevo
+        self.assertEqual(pedir({"usuario": "conrecu", "codigo": codigo, "nueva": "otra5678"}).status_code, 403)  # el viejo ya no sirve
+        A.LIMITE_DOCENTE.bloqueados.clear()
+        r = A.app.test_client().post("/api/docente/ingresar", json={"usuario": "conrecu", "password": "otra1234"},
+                                     headers={"X-Isla": "1"}, environ_base={"REMOTE_ADDR": "127.0.0.1"})
+        self.assertEqual(r.status_code, 200)
+
+    def test_restablecer_desde_otra_cuenta(self):
+        c, _ = self.otra_cuenta("olvidadiza")
+        did = next(d["id"] for d in self.pedir("get", "/api/docente/docentes")[1] if d["usuario"] == "olvidadiza")
+        yo = next(d["id"] for d in self.pedir("get", "/api/docente/docentes")[1] if d["yo"])
+        self.rechaza("post", f"/api/docente/docentes/{yo}/restablecer", {}, 400, "propia")
+        self.rechaza("post", "/api/docente/docentes/99999/restablecer", {}, 404, "no existe")
+        temporal = self.acepta("post", f"/api/docente/docentes/{did}/restablecer")["temporal"]
+        self.assertIsNone(A.problema_password(temporal))
+        A.LIMITE_DOCENTE.bloqueados.clear()
+        k = A.app.test_client()
+        h = {"headers": {"X-Isla": "1"}, "environ_base": {"REMOTE_ADDR": "127.0.0.1"}}
+        self.assertEqual(k.post("/api/docente/ingresar", json={"usuario": "olvidadiza", "password": "clave1234"}, **h).status_code, 403)
+        A.LIMITE_DOCENTE.bloqueados.clear()
+        self.assertEqual(k.post("/api/docente/ingresar", json={"usuario": "olvidadiza", "password": temporal}, **h).status_code, 200)
+        self.assertTrue(k.get("/api/docente/estado", **h).get_json()["sesion"]["debe_cambiar"])
+        # cambia la contraseña sin escribir la temporal de nuevo
+        self.assertEqual(k.post("/api/docente/password", json={"nueva": "propia1234"}, **h).status_code, 200)
+        self.assertFalse(k.get("/api/docente/estado", **h).get_json()["sesion"]["debe_cambiar"])
+        # ya no puede cambiarla sin la actual
+        self.assertEqual(k.post("/api/docente/password", json={"nueva": "otra99999"}, **h).status_code, 403)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

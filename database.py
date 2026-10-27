@@ -18,7 +18,9 @@ CREATE TABLE IF NOT EXISTS docentes(
     nombre TEXT NOT NULL,
     pass_hash TEXT NOT NULL,
     creado TEXT NOT NULL,
-    grados TEXT NOT NULL DEFAULT '1,2,3'   -- grados a cargo de la docente (ve solo esos alumnos)
+    grados TEXT NOT NULL DEFAULT '1,2,3',  -- grados a cargo de la docente (ve solo esos alumnos)
+    recuperacion TEXT,                     -- código de recuperación (cifrado, como la contraseña)
+    debe_cambiar INTEGER NOT NULL DEFAULT 0 -- 1 = entró con una contraseña temporal y tiene que elegir otra
 );
 CREATE TABLE IF NOT EXISTS alumnos(
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -153,6 +155,8 @@ def conectar():
 COLUMNAS_NUEVAS = [
     ("docentes", "grados", "TEXT NOT NULL DEFAULT '1,2,3'"),
     ("tareas", "grados", "TEXT"),
+    ("docentes", "recuperacion", "TEXT"),
+    ("docentes", "debe_cambiar", "INTEGER NOT NULL DEFAULT 0"),
 ]
 
 

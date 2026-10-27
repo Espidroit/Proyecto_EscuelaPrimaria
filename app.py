@@ -756,14 +756,45 @@ def es_local():
     return ip() in ("127.0.0.1", "::1", "localhost")
 
 
+# -----------------------------------------------------------------
+# Recuperación de la contraseña (no hay correo: código de recuperación o restablecer desde otra cuenta)
+# -----------------------------------------------------------------
+LETRAS_CODIGO = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"   # sin 0/O ni 1/I, que se confunden
+
+
+def codigo_recuperacion():
+    """Código fácil de copiar a mano, por ejemplo ISLA-7K3F-9QPA."""
+    al = secrets.SystemRandom()
+    return "ISLA-" + "-".join("".join(al.choice(LETRAS_CODIGO) for _ in range(4)) for _ in range(2))
+
+
+def normalizar_codigo(c):
+    c = re.sub(r"[^A-Z0-9]", "", str(c or "").upper())
+    return f"ISLA-{c[4:8]}-{c[8:12]}" if len(c) == 12 and c.startswith("ISLA") else ""
+
+
+def contrasena_temporal():
+    """Temporal para restablecer una cuenta: palabra + 4 números (cumple las reglas: letras y números)."""
+    al = secrets.SystemRandom()
+    return al.choice(["isla", "cuento", "faro", "barco", "rima", "luna", "semilla"]) + str(al.randint(1000, 9999)) + "x"
+
+
+def nuevo_codigo(con, docente_id):
+    c = codigo_recuperacion()
+    con.execute("UPDATE docentes SET recuperacion=? WHERE id=?", (seg.hashear(c), docente_id))
+    con.commit()
+    return c
+
+
 @app.get("/api/docente/estado")
 def api_docente_estado():
     con = con_db()
     n = con.execute("SELECT COUNT(*) FROM docentes").fetchone()[0]
     yo = None
     if session.get("rol") == "docente":
-        r = con.execute("SELECT nombre, usuario, grados FROM docentes WHERE id=?", (session["uid"],)).fetchone()
-        yo = {**dict(r), "grados": [int(x) for x in (r["grados"] or "1,2,3").split(",")]} if r else None
+        r = con.execute("SELECT nombre, usuario, grados, debe_cambiar, recuperacion FROM docentes WHERE id=?", (session["uid"],)).fetchone()
+        yo = {"nombre": r["nombre"], "usuario": r["usuario"], "grados": [int(x) for x in (r["grados"] or "1,2,3").split(",")],
+              "debe_cambiar": bool(r["debe_cambiar"]), "tiene_codigo": bool(r["recuperacion"])} if r else None
     abierto = db.leer_config(con)["registro_abierto"]
     con.close()
     return jsonify({"configurado": n > 0, "sesion": yo, "local": es_local(),
@@ -807,10 +838,11 @@ def api_docente_configurar():
     cur = con.execute("INSERT INTO docentes(usuario, nombre, pass_hash, creado, grados) VALUES(?,?,?,?,?)",
                       (usuario, nombre, seg.hashear(pw), db.ahora(), grados))
     db.registrar(con, "Cuenta docente creada", usuario, ip())
+    codigo = nuevo_codigo(con, cur.lastrowid)
     con.close()
     session.clear()
     session.update({"rol": "docente", "uid": cur.lastrowid, "t": time.time()})
-    return jsonify({"ok": True})
+    return jsonify({"ok": True, "codigo": codigo})
 
 
 @app.post("/api/docente/ingresar")
@@ -848,7 +880,8 @@ def api_docente_password():
     d = cuerpo()
     con = con_db()
     r = con.execute("SELECT * FROM docentes WHERE id=?", (session["uid"],)).fetchone()
-    if len(str(d.get("actual") or "")) > 128 or not seg.verificar(str(d.get("actual") or ""), r["pass_hash"]):
+    # Si entró con una contraseña temporal recién, no hace falta escribirla de nuevo
+    if not r["debe_cambiar"] and (len(str(d.get("actual") or "")) > 128 or not seg.verificar(str(d.get("actual") or ""), r["pass_hash"])):
         con.close()
         return error("La contraseña actual no es correcta.", 403)
     nueva = str(d.get("nueva") or "")
@@ -858,7 +891,7 @@ def api_docente_password():
     if seg.verificar(nueva, r["pass_hash"]):
         con.close()
         return error("La nueva contraseña tiene que ser distinta de la actual.")
-    con.execute("UPDATE docentes SET pass_hash=? WHERE id=?", (seg.hashear(nueva), r["id"]))
+    con.execute("UPDATE docentes SET pass_hash=?, debe_cambiar=0 WHERE id=?", (seg.hashear(nueva), r["id"]))
     db.registrar(con, "Cambio de contraseña", r["usuario"], ip())
     con.close()
     return jsonify({"ok": True})
@@ -1763,6 +1796,65 @@ def api_docente_docentes():
            for r in con.execute("SELECT * FROM docentes ORDER BY creado")]
     con.close()
     return jsonify(out)
+
+
+@app.post("/api/docente/recuperar")
+def api_docente_recuperar():
+    """«¿Olvidaste tu contraseña?»: usuario + código de recuperación + contraseña nueva."""
+    d = cuerpo()
+    usuario, codigo, nueva = texto(d.get("usuario"), 30).lower(), normalizar_codigo(d.get("codigo")), str(d.get("nueva") or "")
+    llave = ip()
+    espera = LIMITE_DOCENTE.bloqueado(llave)
+    if espera:
+        return error(f"Demasiados intentos. Esperá {espera // 60 + 1} minutos.", 429)
+    if problema_password(nueva):
+        return error("La nueva contraseña no sirve: " + problema_password(nueva)[0].lower() + problema_password(nueva)[1:])
+    con = con_db()
+    r = con.execute("SELECT * FROM docentes WHERE usuario=?", (usuario,)).fetchone()
+    if not r or not codigo or not r["recuperacion"] or not seg.verificar(codigo, r["recuperacion"]):
+        LIMITE_DOCENTE.fallo(llave)
+        db.registrar(con, "Recuperación de contraseña fallida", usuario, ip())
+        con.close()
+        return error("El usuario o el código de recuperación no son correctos.", 403)
+    LIMITE_DOCENTE.exito(llave)
+    con.execute("UPDATE docentes SET pass_hash=?, debe_cambiar=0 WHERE id=?", (seg.hashear(nueva), r["id"]))
+    db.registrar(con, "Contraseña recuperada con el código", usuario, ip())
+    codigo_nuevo = nuevo_codigo(con, r["id"])   # cada código sirve una sola vez
+    con.close()
+    session.clear()
+    session.update({"rol": "docente", "uid": r["id"], "t": time.time()})
+    return jsonify({"ok": True, "codigo": codigo_nuevo})
+
+
+@app.post("/api/docente/codigo-recuperacion")
+@requiere("docente")
+def api_docente_codigo_recuperacion():
+    """Genera un código de recuperación nuevo (el anterior deja de servir)."""
+    con = con_db()
+    codigo = nuevo_codigo(con, session["uid"])
+    yo = con.execute("SELECT usuario FROM docentes WHERE id=?", (session["uid"],)).fetchone()[0]
+    db.registrar(con, "Código de recuperación nuevo", yo, ip())
+    con.close()
+    return jsonify({"ok": True, "codigo": codigo})
+
+
+@app.post("/api/docente/docentes/<int:did>/restablecer")
+@requiere("docente")
+def api_docente_restablecer(did):
+    """Otra docente le genera una contraseña temporal a una cuenta que se olvidó la suya."""
+    if did == session["uid"]:
+        return error("Para tu propia cuenta usá «Cambiar contraseña» en Mi cuenta.")
+    con = con_db()
+    r = con.execute("SELECT usuario FROM docentes WHERE id=?", (did,)).fetchone()
+    if not r:
+        con.close()
+        return error("Esa cuenta docente no existe.", 404)
+    temporal = contrasena_temporal()
+    con.execute("UPDATE docentes SET pass_hash=?, debe_cambiar=1 WHERE id=?", (seg.hashear(temporal), did))
+    yo = con.execute("SELECT usuario FROM docentes WHERE id=?", (session["uid"],)).fetchone()[0]
+    db.registrar(con, f"Contraseña restablecida para {r[0]}", yo, ip())
+    con.close()
+    return jsonify({"ok": True, "usuario": r[0], "temporal": temporal})
 
 
 @app.put("/api/docente/mis-grados")

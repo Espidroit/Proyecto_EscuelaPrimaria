@@ -116,10 +116,12 @@ async function navegar() {
     const est = await api("/api/docente/estado");
     if (!est.sesion) {
       if (location.hash === "#/registro" && est.registro) return vConfigurar(true, true);
+      if (location.hash === "#/recuperar" && est.configurado) return vRecuperar();
       return est.configurado ? vIngreso(est) : vConfigurar(est.local);
     }
     YO = est.sesion;
   }
+  if (YO.debe_cambiar) return vCambioObligatorio();
   const [r, a, b] = (location.hash.replace(/^#\/?/, "") || "panel").split("/");
   const rutas = {panel: pPanel, alumnos: pAlumnos, alumno: () => pAlumno(a, b), tarjetas: pTarjetas,
                  tareas: pTareas, tarea: () => pTarea(a), "tarea-nueva": pTareaNueva,
@@ -219,10 +221,46 @@ function vIngreso(est = {}) {
     ${campoPass("password", "Contraseña", "current-password")}
     <div class="error-form" id="err"></div>
     <button class="btn" type="submit">Ingresar</button>
+    <p style="margin:14px 0 0;text-align:center;font-size:13.5px"><a href="#/recuperar">¿Olvidaste tu contraseña?</a></p>
     ${est.registro ? `<p style="margin:16px 0 0;text-align:center;font-size:13.5px">¿Sos docente y todavía no tenés cuenta? <a href="#/registro">Crear mi cuenta</a></p>` : ""}
     <div class="candado">${ic("candado")}Por seguridad, la sesión se cierra sola después de 30 minutos sin uso.</div>
   </form></div>`;
 }
+function vRecuperar() {
+  $("#raiz").innerHTML = `<div class="acceso"><form class="caja" data-form="recuperar" autocomplete="off">
+    <div class="marca"><div class="logo">🏝️</div><div><b>Isla de los Cuentos</b><small class="muted">Recuperar el acceso</small></div></div>
+    <h1>¿Olvidaste tu contraseña?</h1>
+    <p>Escribí tu usuario y el <b>código de recuperación</b> que te mostró el panel al crear tu cuenta (empieza con ISLA-).</p>
+    <div class="campo"><label>Usuario</label><input type="text" name="usuario" autocomplete="username" required></div>
+    <div class="campo"><label>Código de recuperación</label><input type="text" name="codigo" placeholder="ISLA-XXXX-XXXX" required style="text-transform:uppercase;font-family:ui-monospace,monospace;letter-spacing:.06em"></div>
+    <div class="f2">${campoPass("nueva", "Nueva contraseña", "new-password")}${campoPass("nueva2", "Repetir", "new-password")}</div>
+    <div class="error-form" id="err"></div><button class="btn" type="submit">Cambiar contraseña y entrar</button>
+    <div class="ayuda" style="margin-top:16px;font-size:13.5px"><b>¿No tenés el código?</b> Pedile a otra docente que entre al panel y toque <b>Ajustes → Docentes → Restablecer contraseña</b> en tu cuenta. Te va a dar una contraseña temporal.</div>
+    <p style="margin:14px 0 0;text-align:center;font-size:13.5px"><a href="#/">Volver a ingresar</a></p>
+  </form></div>`;
+}
+function vCambioObligatorio() {
+  $("#raiz").innerHTML = `<div class="acceso"><form class="caja" data-form="cambioObligatorio" autocomplete="off">
+    <div class="marca"><div class="logo">🏝️</div><div><b>Isla de los Cuentos</b><small class="muted">${esc(YO.nombre)}</small></div></div>
+    <h1>Elegí una contraseña nueva</h1>
+    <p>Entraste con una contraseña temporal. Antes de seguir, elegí una propia que solo vos sepas.</p>
+    ${campoPass("nueva", "Nueva contraseña", "new-password", "Mínimo 8 caracteres, con letras y números.")}
+    ${campoPass("nueva2", "Repetir contraseña", "new-password")}
+    <div class="error-form" id="err"></div><button class="btn" type="submit">Guardar y entrar</button>
+  </form></div>`;
+}
+// Muestra un código de recuperación (una sola vez) y espera a que la docente confirme que lo guardó
+function mostrarCodigo(codigo, titulo = "Tu código de recuperación") {
+  return modal({titulo, cuerpo: `
+    <p style="margin-top:0">Si alguna vez te olvidás la contraseña, con este código la podés cambiar vos misma desde «¿Olvidaste tu contraseña?».</p>
+    <div class="codigo-rec" id="codRec">${esc(codigo)}</div>
+    <p class="muted" style="font-size:13px;margin-bottom:0"><b>Anotalo o sacale una foto ahora:</b> por seguridad no se vuelve a mostrar. Cada código sirve una sola vez; al usarlo te damos uno nuevo.</p>`,
+    botones: [{txt: "Copiar", cls: "sec", valor: "copiar"}, {txt: "Ya lo guardé", valor: true}]}).then(async r => {
+      if (r === "copiar") { try { await navigator.clipboard.writeText(codigo); toast("Código copiado."); } catch (e) { toast("No se pudo copiar: anotalo a mano.", true); } return mostrarCodigo(codigo, titulo); }
+      return r;
+    });
+}
+
 function vConfigurar(local, nueva = false) {
   $("#raiz").innerHTML = `<div class="acceso"><form class="caja" data-form="configurar" autocomplete="off">
     <div class="marca"><div class="logo">🏝️</div><div><b>Isla de los Cuentos</b><small class="muted">${nueva ? "Nueva cuenta docente" : "Primera configuración"}</small></div></div>
@@ -754,7 +792,10 @@ async function pAjustes() {
       <section class="panel"><div class="panel-h"><h2>Mi cuenta</h2></div><form class="panel-b" data-form="password">
         ${campoPass("actual", "Contraseña actual", "current-password")}
         <div class="f2">${campoPass("nueva", "Nueva contraseña", "new-password")}${campoPass("nueva2", "Repetir", "new-password")}</div>
-        <div class="error-form" id="err"></div><button class="btn" type="submit">Cambiar contraseña</button></form></section>
+        <div class="error-form" id="err"></div><button class="btn" type="submit">Cambiar contraseña</button>
+        <div class="interruptor" style="margin-top:18px;border-top:1px solid var(--line2);padding-top:14px"><div class="t"><b>Código de recuperación</b>
+          <small>${YO.tiene_codigo ? "Ya tenés uno. Si lo perdiste, generá otro (el anterior deja de servir)." : "<b style='color:var(--warn)'>Todavía no tenés.</b> Generalo y guardalo: sirve para cambiar la contraseña si te la olvidás."}</small></div>
+          <button class="btn sec chico" type="button" data-act="nuevoCodigo">${YO.tiene_codigo ? "Generar otro" : "Generar código"}</button></div></form></section>
       <section class="panel"><div class="panel-h"><h2>Datos y respaldo</h2></div><div class="panel-b">
         <p style="margin-top:0" class="ink2">Todo se guarda en la carpeta <b>datos</b> del programa, en esta computadora. Descargá una copia de vez en cuando.</p>
         <div class="acciones"><a class="btn sec" href="/api/docente/exportar.csv">${ic("bajar")}Resultados (Excel / CSV)</a><a class="btn sec" href="/api/docente/copia">${ic("bajar")}Copia de seguridad</a></div></div></section>
@@ -763,7 +804,7 @@ async function pAjustes() {
     <div class="panel-b" style="padding-top:4px;padding-bottom:4px">${sw("registro_abierto", "Permitir que otros docentes se creen su cuenta", "Aparece «Crear mi cuenta» en la pantalla de ingreso. Por seguridad, solo funciona desde la computadora donde está instalado el juego. Desactivalo cuando ya estén todos.")}</div>
     <div class="panel-b sin"><table><thead><tr><th>Nombre</th><th>Usuario</th><th>Grados</th><th>Cuenta creada</th><th>Último ingreso</th><th></th></tr></thead><tbody>
     ${docentes.map(d => `<tr><td><b>${esc(d.nombre)}</b> ${d.yo ? `<span class="estado e-info">Vos</span>` : ""}</td><td>@${esc(d.usuario)}</td><td>${nombreGrados(d.grados)}</td><td class="num">${fechaCorta(d.creado)}</td><td class="muted">${haceCuanto(d.ultimo)}</td>
-      <td class="r">${d.yo ? "" : `<button class="btn peligro chico" data-act="borrarDocente" data-id="${d.id}" data-n="${esc(d.nombre)}">Eliminar</button>`}</td></tr>`).join("")}
+      <td class="r" style="white-space:nowrap">${d.yo ? "" : `<button class="btn sec chico" data-act="restablecer" data-id="${d.id}" data-n="${esc(d.nombre)}">Restablecer contraseña</button> <button class="btn peligro chico" data-act="borrarDocente" data-id="${d.id}" data-n="${esc(d.nombre)}">Eliminar</button>`}</td></tr>`).join("")}
     </tbody></table></div></section>
   <section class="panel" style="margin-top:20px"><div class="panel-h"><h2>Registro de accesos</h2><span class="muted" style="font-size:12.5px">Últimos 40 eventos de seguridad</span></div>
     <div class="panel-b sin"><div class="tabla-wrap"><table><thead><tr><th>Fecha</th><th>Evento</th><th>Usuario</th><th>Equipo (IP)</th></tr></thead><tbody>
@@ -864,6 +905,19 @@ const A = {
     if (!await confirmar("Pasar a borrador", "Los chicos dejan de ver este cuento hasta que lo vuelvas a publicar. Sus resultados se conservan.")) return;
     if (await llamar(() => api(`/api/docente/actividades/${encodeURIComponent(el.dataset.id)}/estado`, {method: "POST", body: {estado: "borrador"}}), "Ahora es un borrador.")) navegar();
   },
+  restablecer: async el => {
+    if (!await confirmar("Restablecer contraseña", `Se genera una contraseña temporal para <b>${esc(el.dataset.n)}</b>. Su contraseña actual deja de funcionar y, al entrar con la temporal, va a tener que elegir una nueva.`, "Restablecer")) return;
+    const r = await llamar(() => api(`/api/docente/docentes/${el.dataset.id}/restablecer`, {method: "POST"}));
+    if (r) modal({titulo: "Contraseña temporal", cuerpo: `<p style="margin-top:0">Pasale estos datos a <b>${esc(el.dataset.n)}</b> (en persona o por un mensaje privado):</p>
+      <p>Usuario: <b>@${esc(r.usuario)}</b></p><div class="codigo-rec">${esc(r.temporal)}</div>
+      <p class="muted" style="font-size:13px;margin-bottom:0">No se vuelve a mostrar. Cuando entre, el panel le pide elegir una contraseña nueva.</p>`,
+      botones: [{txt: "Listo", valor: true}]});
+  },
+  nuevoCodigo: async () => {
+    if (YO.tiene_codigo && !await confirmar("Código de recuperación nuevo", "El código anterior deja de funcionar. ¿Generar uno nuevo?", "Generar")) return;
+    const r = await llamar(() => api("/api/docente/codigo-recuperacion", {method: "POST"}));
+    if (r) { YO.tiene_codigo = true; await mostrarCodigo(r.codigo); pAjustes(); }
+  },
   verPass: el => {
     const i = el.parentElement.querySelector("input"), ver = i.type === "password";
     i.type = ver ? "text" : "password";
@@ -895,7 +949,11 @@ const FORM = {
     d.grados = $$("[name=grados]:checked", f).map(i => +i.value);
     if (!d.grados.length) { $("#err").textContent = "Elegí al menos un grado."; return; }
     const nueva = location.hash === "#/registro";
-    try { await api("/api/docente/configurar", {method: "POST", body: d}); YO = null; location.hash = nueva ? "#/panel" : "#/alumnos"; navegar(); toast(nueva ? "¡Cuenta creada! Bienvenido/a al panel." : "¡Cuenta creada! Ahora agregá a tus alumnos."); }
+    try {
+      const r = await api("/api/docente/configurar", {method: "POST", body: d});
+      if (r.codigo) await mostrarCodigo(r.codigo);
+      YO = null; location.hash = nueva ? "#/panel" : "#/alumnos"; navegar(); toast(nueva ? "¡Cuenta creada! Bienvenido/a al panel." : "¡Cuenta creada! Ahora agregá a tus alumnos.");
+    }
     catch (e) { $("#err").textContent = e.message; }
   },
   observacion: async (f, d) => { if (await llamar(() => api(`/api/docente/alumnos/${f.dataset.id}/observaciones`, {method: "POST", body: d}), "Observación guardada.")) navegar(); },
@@ -920,6 +978,23 @@ const FORM = {
       toast(d.publicar ? "¡Publicado! Ya aparece en la isla." : "Guardado como borrador. Publicalo cuando esté listo.");
       location.hash = esCuento ? "#/cuentos" : "#/actividad/" + id;
     } catch (e) { if (e.status === 401) return llamar(() => Promise.reject(e)); $("#err").textContent = e.message; $("#err").scrollIntoView({block: "center"}); }
+  },
+  recuperar: async (f, d) => {
+    if (d.nueva !== d.nueva2) { $("#err").textContent = "Las contraseñas nuevas no coinciden."; return; }
+    try {
+      const r = await api("/api/docente/recuperar", {method: "POST", body: d});
+      await mostrarCodigo(r.codigo, "Listo. Este es tu código nuevo");
+      YO = null; location.hash = "#/panel"; navegar(); toast("Contraseña cambiada. ¡Bienvenida de nuevo!");
+    } catch (e) { $("#err").textContent = e.message; }
+  },
+  cambioObligatorio: async (f, d) => {
+    if (d.nueva !== d.nueva2) { $("#err").textContent = "Las contraseñas no coinciden."; return; }
+    try {
+      await api("/api/docente/password", {method: "POST", body: {nueva: d.nueva}});
+      YO.debe_cambiar = false; toast("Contraseña guardada.");
+      if (!YO.tiene_codigo) { const r = await api("/api/docente/codigo-recuperacion", {method: "POST"}); YO.tiene_codigo = true; await mostrarCodigo(r.codigo); }
+      navegar();
+    } catch (e) { $("#err").textContent = e.message; }
   },
   misGrados: async f => {
     const grados = $$("[name=grados]:checked", f).map(i => +i.value);
