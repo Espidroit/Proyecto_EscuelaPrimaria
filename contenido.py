@@ -133,6 +133,23 @@ CUENTOS = [
         {"t": "e", "tema": "vocabulario", "p": "Caco estaba «apurado». ¿Qué quiere decir?", "o": ["Que quiere hacer todo rápido", "Que está mojado", "Que tiene hambre"]},
         {"t": "vf", "tema": "detalles", "p": "La mariposa llevó a Caco volando.", "v": True},
         {"t": "o", "tema": "secuencia", "items": ["🐌 Caco quería ir a la fiesta.", "🦋 La mariposa lo llevó volando.", "💃 Llegaron a tiempo para bailar."]}]),
+    _c("lola", "Lola y el globo", "🎈", "🎈", 1,
+       "Lola tenía un globo azul. Fue a la plaza con su papá. De pronto sopló un viento fuerte y el globo se escapó. Lola lloró un poquito. Su papá le compró otro globo y Lola sonrió.",
+       [{"t": "e", "tema": "personajes", "p": "¿Quién tenía un globo?", "o": ["Lola", "Un nene", "La abuela"]},
+        {"t": "e", "tema": "lugar", "p": "¿A dónde fueron Lola y su papá?", "o": ["A la plaza", "A la escuela", "A la playa"]},
+        {"t": "e", "tema": "detalles", "p": "¿De qué color era el globo?", "o": ["Azul", "Rojo", "Verde"]},
+        {"t": "e", "tema": "vocabulario", "p": "El globo «se escapó». ¿Qué quiere decir?", "o": ["Que se fue volando lejos", "Que se rompió", "Que se hizo más grande"]},
+        {"t": "e", "tema": "emociones", "p": "¿Cómo se sintió Lola cuando el globo se escapó?", "o": ["Triste", "Contenta", "Con sueño"]},
+        {"t": "vf", "tema": "detalles", "p": "El papá le compró otro globo.", "v": True},
+        {"t": "o", "tema": "secuencia", "items": ["🎈 Lola fue a la plaza con su globo.", "💨 El viento se llevó el globo.", "😊 Su papá le compró otro."]}]),
+    _c("pipo", "El pato Pipo", "🦆", "🦆", 1,
+       "Pipo era un pato que no sabía nadar. Sus hermanos nadaban en la laguna. Pipo los miraba desde la orilla. Un día, mamá pata le enseñó despacito. ¡Pipo movió las patas y nadó! Estaba muy orgulloso.",
+       [{"t": "e", "tema": "personajes", "p": "¿Quién no sabía nadar?", "o": ["Pipo", "Mamá pata", "Un pez"]},
+        {"t": "e", "tema": "lugar", "p": "¿Dónde nadaban los hermanos de Pipo?", "o": ["En la laguna", "En una pileta", "En el mar"]},
+        {"t": "e", "tema": "vocabulario", "p": "Pipo miraba desde la «orilla». ¿Qué es la orilla?", "o": ["El borde del agua", "El fondo de la laguna", "Un nido de pato"]},
+        {"t": "e", "tema": "inferencia", "p": "¿Por qué al final Pipo pudo nadar?", "o": ["Porque mamá pata le enseñó", "Porque se puso un salvavidas", "Porque llovió mucho"]},
+        {"t": "e", "tema": "emociones", "p": "¿Cómo se sentía Pipo al final?", "o": ["Orgulloso y feliz", "Triste", "Enojado"]},
+        {"t": "o", "tema": "secuencia", "items": ["👀 Pipo miraba desde la orilla.", "🦆 Mamá pata le enseñó.", "🏊 ¡Pipo nadó!"]}]),
     _c("tita", "Tita va a la escuela", "🐢", "🐢", 2,
        "Tita era una tortuga que iba a empezar primer grado. Esa mañana se puso su mochila verde y salió de su casa. En el camino se encontró con Ramón, un conejo que también iba a la escuela. Tita estaba nerviosa porque no conocía a nadie. Ramón le dijo: —No te preocupes, yo me siento con vos. Cuando llegaron, la seño les leyó un cuento muy lindo. Al final del día, Tita ya tenía un amigo nuevo.",
        [{"t": "e", "tema": "personajes", "p": "¿Quiénes son los personajes del cuento?", "o": ["Tita, Ramón y la seño", "Tita y un perro", "Solamente Ramón"]},
@@ -189,6 +206,41 @@ CUENTOS = [
         {"t": "e", "tema": "inferencia", "p": "¿Por qué era importante encender el faro esa noche?", "o": ["Para que el barco no chocara contra las rocas", "Para que el abuelo pudiera leer", "Para secar la ropa"]},
         {"t": "e", "tema": "inferencia", "p": "¿Por qué los pescadores le hicieron un regalo a Martina?", "o": ["Para agradecerle que los ayudó", "Porque era su cumpleaños", "Porque vendían caracoles"]},
         {"t": "o", "tema": "secuencia", "items": ["🦶 El abuelo se torció un tobillo.", "⛈️ Empezó una tormenta muy fuerte.", "🔦 Martina subió la escalera del faro.", "💡 La luz del faro se encendió.", "🎁 Los pescadores le trajeron un regalo."]}]),
+    _c("cuaderno", "El cuaderno escondido", "📓", "📓", 3,
+       "En la escuela de Joaquín había una biblioteca pequeña, con estantes de madera que crujían. Un martes, mientras buscaba un libro de dinosaurios, Joaquín encontró un cuaderno viejo escondido detrás de una enciclopedia. Tenía la tapa gastada y adentro había dibujos de plantas, mapas del barrio y una firma: «Elsa, 1975». Joaquín se lo mostró a la bibliotecaria, que se quedó sorprendida. —Elsa fue alumna de esta escuela y hoy es la abuela de tu compañera Sofía —le contó. Al día siguiente, Sofía llevó a su abuela al aula. Elsa reconoció su cuaderno enseguida y se emocionó tanto que se le llenaron los ojos de lágrimas. Les contó que de chica le encantaba observar la naturaleza y anotar todo lo que veía. Desde ese día, el grado tiene su propio cuaderno de observaciones, y cada semana un alumno distinto se lo lleva a su casa.",
+       [{"t": "e", "tema": "personajes", "p": "¿Quién encontró el cuaderno?", "o": ["Joaquín", "Sofía", "La bibliotecaria"]},
+        {"t": "e", "tema": "lugar", "p": "¿Dónde estaba escondido el cuaderno?", "o": ["Detrás de una enciclopedia", "Debajo de un banco del patio", "En la mochila de Sofía"]},
+        {"t": "e", "tema": "lugar", "p": "¿Qué día lo encontró?", "o": ["Un martes", "Un sábado", "Un domingo"]},
+        {"t": "e", "tema": "detalles", "p": "¿Qué había adentro del cuaderno?", "o": ["Dibujos de plantas y mapas del barrio", "Fotos de dinosaurios", "Recetas de cocina"]},
+        {"t": "vf", "tema": "detalles", "p": "Elsa era la maestra de Joaquín.", "v": False},
+        {"t": "e", "tema": "vocabulario", "p": "Los estantes «crujían». ¿Qué quiere decir?", "o": ["Que hacían ruido al moverse", "Que estaban recién pintados", "Que eran muy altos"]},
+        {"t": "e", "tema": "emociones", "p": "¿Cómo se sintió Elsa al ver su cuaderno?", "o": ["Muy emocionada", "Enojada", "Aburrida"]},
+        {"t": "e", "tema": "inferencia", "p": "¿Por qué el cuaderno era tan importante para Elsa?", "o": ["Porque lo había hecho cuando era chica", "Porque costaba mucha plata", "Porque era de su maestra"]},
+        {"t": "e", "tema": "inferencia", "p": "¿Por qué el grado empezó su propio cuaderno?", "o": ["Porque Elsa los entusiasmó a observar y anotar", "Porque la seño los retó", "Porque se perdió el cuaderno de Elsa"]},
+        {"t": "o", "tema": "secuencia", "items": ["🔍 Joaquín buscaba un libro de dinosaurios.", "📓 Encontró un cuaderno viejo.", "👩‍🏫 Se lo mostró a la bibliotecaria.", "👵 Elsa reconoció su cuaderno.", "✏️ El grado empezó su propio cuaderno."]}]),
+    _c("galleta", "Ramiro y el perro perdido", "🐕", "🐕", 3,
+       "Un sábado a la tarde, Ramiro volvía de la panadería cuando vio un perro blanco con una mancha negra en el ojo. Estaba solo, mojado y temblaba de frío debajo de un árbol de la vereda. Tenía un collar rojo, pero sin chapita con el nombre. Ramiro lo envolvió con su campera y lo llevó a su casa. Su mamá le preparó una manta y un plato con agua. —Seguro que alguien lo está buscando —dijo Ramiro, preocupado. Entonces tuvo una idea: hizo carteles con un dibujo del perro y el teléfono de su mamá, y los pegó en los negocios del barrio. Esa misma noche sonó el teléfono. Era Clara, una nena de la otra cuadra, que lloraba de alegría. Cuando llegó a buscarlo, el perro movió la cola sin parar. Se llamaba Galleta. Desde entonces, Clara y Ramiro pasean juntos a Galleta todos los domingos.",
+       [{"t": "e", "tema": "personajes", "p": "¿Quién era la dueña del perro?", "o": ["Clara", "La mamá de Ramiro", "La panadera"]},
+        {"t": "e", "tema": "lugar", "p": "¿Dónde encontró Ramiro al perro?", "o": ["Debajo de un árbol de la vereda", "Adentro de la panadería", "En la plaza"]},
+        {"t": "e", "tema": "lugar", "p": "¿Cuándo lo encontró?", "o": ["Un sábado a la tarde", "Un lunes a la mañana", "Un domingo a la noche"]},
+        {"t": "e", "tema": "detalles", "p": "¿Cómo era el perro?", "o": ["Blanco, con una mancha negra en el ojo", "Marrón, con manchas blancas", "Todo negro"]},
+        {"t": "vf", "tema": "detalles", "p": "El perro tenía una chapita con su nombre.", "v": False},
+        {"t": "e", "tema": "vocabulario", "p": "El perro «temblaba». ¿Qué quiere decir?", "o": ["Que se sacudía sin querer por el frío", "Que corría muy rápido", "Que ladraba fuerte"]},
+        {"t": "e", "tema": "emociones", "p": "¿Cómo se sentía Ramiro cuando dijo «Seguro que alguien lo está buscando»?", "o": ["Preocupado", "Contento", "Enojado"]},
+        {"t": "e", "tema": "inferencia", "p": "¿Para qué hizo carteles Ramiro?", "o": ["Para que los dueños del perro se enteraran", "Para vender el perro", "Para adornar el barrio"]},
+        {"t": "e", "tema": "inferencia", "p": "¿Por qué el perro movió la cola sin parar?", "o": ["Porque estaba feliz de ver a su dueña", "Porque tenía frío", "Porque quería comer"]},
+        {"t": "o", "tema": "secuencia", "items": ["🐕 Ramiro vio un perro mojado.", "🧥 Lo llevó a su casa con su campera.", "📋 Pegó carteles en el barrio.", "📞 Llamó Clara por teléfono.", "🦮 Ahora pasean juntos a Galleta."]}]),
+    _c("plumita", "El viaje de Plumita", "🌬️", "🌼", 3,
+       "En un campo lleno de flores vivía Plumita, una semilla de diente de león. Era tan liviana que parecía un paraguas diminuto. Todas sus hermanas ya habían salido volando, pero Plumita tenía miedo de soltarse. —¿Y si me pierdo? —le preguntó a la abeja Rufina. —Las semillas no se pierden: viajan para encontrar su lugar —le respondió la abeja. Al otro día sopló un viento tibio de primavera. Plumita respiró hondo y se soltó. Pasó sobre un arroyo, esquivó un nido de horneros y saludó a unos chicos que jugaban a la pelota. Al atardecer, el viento se calmó y Plumita cayó suavemente en un rincón de tierra húmeda, cerca de una escuela. Con la lluvia y el sol, echó raíces. Meses después, una flor amarilla asomó junto a la puerta del aula, y los chicos la cuidaron todos los días.",
+       [{"t": "e", "tema": "personajes", "p": "¿Quién le dio un consejo a Plumita?", "o": ["La abeja Rufina", "Un hornero", "Los chicos de la escuela"]},
+        {"t": "e", "tema": "lugar", "p": "¿Dónde vivía Plumita al principio?", "o": ["En un campo lleno de flores", "En el patio de una escuela", "Al lado de un arroyo"]},
+        {"t": "e", "tema": "lugar", "p": "¿En qué estación del año se soltó?", "o": ["En primavera", "En invierno", "En otoño"]},
+        {"t": "e", "tema": "detalles", "p": "¿A qué se parecía Plumita?", "o": ["A un paraguas diminuto", "A una piedra", "A una mariposa"]},
+        {"t": "vf", "tema": "detalles", "p": "Plumita cayó cerca de una escuela.", "v": True},
+        {"t": "e", "tema": "vocabulario", "p": "Plumita parecía un paraguas «diminuto». ¿Qué quiere decir?", "o": ["Muy, muy chiquito", "Muy pesado", "De muchos colores"]},
+        {"t": "e", "tema": "emociones", "p": "¿Qué sentía Plumita antes de soltarse?", "o": ["Miedo de perderse", "Mucho sueño", "Enojo con sus hermanas"]},
+        {"t": "e", "tema": "inferencia", "p": "¿Qué quiso decir la abeja con «viajan para encontrar su lugar»?", "o": ["Que las semillas vuelan para crecer en otro lugar", "Que las semillas se van de vacaciones", "Que las semillas buscan a su mamá"]},
+        {"t": "o", "tema": "secuencia", "items": ["😟 Plumita tenía miedo de soltarse.", "🐝 La abeja le dio un consejo.", "🌬️ Se soltó con el viento.", "🌱 Cayó en la tierra y echó raíces.", "🌼 Nació una flor junto al aula."]}]),
 ]
 
 # ---------------------------------------------------------------
@@ -313,9 +365,9 @@ DIBUJOS_CLAVE = ["🍎", "🐶", "⭐", "🚗", "🌸", "🐱", "⚽", "🌙", "
 # ---------------------------------------------------------------
 XP_NIVEL = 120
 NIVELES = [
-    {"n": "Lector Semilla", "i": "🌱"}, {"n": "Lector Brote", "i": "🌿"}, {"n": "Lector Árbol", "i": "🌳"},
-    {"n": "Lector Explorador", "i": "🧭"}, {"n": "Lector Pirata", "i": "🏴‍☠️"}, {"n": "Lector Mago", "i": "🪄"},
-    {"n": "Lector Estrella", "i": "🌟"}, {"n": "Leyenda de la Isla", "i": "🏆"},
+    {"n": "Semilla", "i": "🌱"}, {"n": "Brote", "i": "🌿"}, {"n": "Árbol", "i": "🌳"},
+    {"n": "Brújula", "i": "🧭"}, {"n": "Barco pirata", "i": "🏴‍☠️"}, {"n": "Varita mágica", "i": "🪄"},
+    {"n": "Estrella", "i": "🌟"}, {"n": "Leyenda de la Isla", "i": "🏆"},
 ]
 
 def nivel_de(xp):
@@ -323,25 +375,25 @@ def nivel_de(xp):
 
 MEDALLAS = [
     {"id": "m1", "n": "Primer cuento", "i": "📘", "d": "Terminaste tu primer cuento."},
-    {"id": "m3", "n": "Lector constante", "i": "📗", "d": "Terminaste 3 cuentos."},
+    {"id": "m3", "n": "Lectura constante", "i": "📗", "d": "Terminaste 3 cuentos."},
     {"id": "m6", "n": "Ratón de biblioteca", "i": "📚", "d": "Terminaste 6 cuentos."},
-    {"id": "j3", "n": "Jugador de palabras", "i": "🧱", "d": "Completaste 3 juegos de palabras."},
+    {"id": "j3", "n": "Juegos de palabras", "i": "🧱", "d": "Completaste 3 juegos de palabras."},
     {"id": "perf", "n": "Actividad perfecta", "i": "🌟", "d": "Ganaste 3 estrellas en una actividad."},
     {"id": "perf3", "n": "Superestrella", "i": "💫", "d": "Ganaste 3 estrellas en 5 actividades."},
     {"id": "rep", "n": "Repaso campeón", "i": "🔁", "d": "Volviste a jugar algo para mejorar."},
-    {"id": "t1", "n": "Primera tarea", "i": "📝", "d": "Terminaste tu primera tarea de la seño."},
-    {"id": "t5", "n": "Súper responsable", "i": "🎖️", "d": "Terminaste 5 tareas de la seño."},
+    {"id": "t1", "n": "Primera misión", "i": "🎯", "d": "Cumpliste tu primera misión de la seño."},
+    {"id": "t5", "n": "Súper responsable", "i": "🎖️", "d": "Cumpliste 5 misiones de la seño."},
 ] + [
     {"id": "tema-" + k, "n": n, "i": i, "d": f"Respondé bien a la primera 5 veces en «{TEMAS[k]['n']}»."}
     for k, n, i in [
-        ("personajes", "Detective de personajes", "🕵️"), ("lugar", "Exploradora de lugares", "🧭"),
-        ("detalles", "Ojo de águila", "🦅"), ("secuencia", "Maestro del orden", "🧩"),
-        ("vocabulario", "Coleccionista de palabras", "📖"), ("emociones", "Lector de corazones", "💖"),
-        ("inferencia", "Gran pensador", "💡"), ("oraciones", "Constructor de oraciones", "🧱"),
-        ("rimas", "Poeta de la isla", "🎵"), ("escritura", "Escritor estrella", "✏️"),
-        ("silabas", "Rey de las sílabas", "👏"), ("completar", "Detective de oraciones", "📌"),
-        ("sinonimos", "Mago de las palabras", "🔄"), ("ortografia", "Guardián de la ortografía", "🖍️"),
-        ("clases", "Clasificador experto", "🏷️"),
+        ("personajes", "Detective de personajes", "🕵️"), ("lugar", "Brújula de lugares", "🧭"),
+        ("detalles", "Ojo de águila", "🦅"), ("secuencia", "Orden perfecto", "🧩"),
+        ("vocabulario", "Colección de palabras", "📖"), ("emociones", "Leer con el corazón", "💖"),
+        ("inferencia", "Mente brillante", "💡"), ("oraciones", "Oraciones bien armadas", "🧱"),
+        ("rimas", "Poesía de la isla", "🎵"), ("escritura", "Letra estrella", "✏️"),
+        ("silabas", "Palmas de oro", "👏"), ("completar", "Detective de oraciones", "📌"),
+        ("sinonimos", "Magia de las palabras", "🔄"), ("ortografia", "Escudo de la ortografía", "🖍️"),
+        ("clases", "Etiquetas expertas", "🏷️"),
     ]
 ]
 MEDALLAS_POR_ID = {m["id"]: m for m in MEDALLAS}
@@ -350,6 +402,10 @@ MEDALLAS_POR_ID = {m["id"]: m for m in MEDALLAS}
 # Catálogo del avatar
 #   precio: monedas · nivel: nivel mínimo · medalla: medalla necesaria
 #   Lo que tiene precio 0 y no pide nada es gratis desde el inicio.
+#   Criterio: todo lo que sirve para que el avatar «se parezca a mí» (piel, peinado, color de pelo natural,
+#   ojos, boca, ropa básica y sus colores, anteojos comunes) es GRATIS. Lo que cuesta monedas o se gana
+#   con niveles y medallas son los EXTRAS de fantasía: colores de pelo fantasía, remeras con dibujo, capa,
+#   gorros, anteojos de sol, mascotas, fondos y marcos.
 # ---------------------------------------------------------------
 def _it(cat, v, n, precio=0, nivel=0, medalla=None, **extra):
     d = {"id": f"{cat}:{v}", "cat": cat, "v": v, "n": n, "precio": precio, "nivel": nivel, "medalla": medalla}
@@ -371,8 +427,8 @@ CATALOGO = [
     _it("piel", "p5", "Piel 5", color="#9a6338"), _it("piel", "p6", "Piel 6", color="#6e4426"),
 
     _it("pelo", "corto", "Corto"), _it("pelo", "largo", "Largo"), _it("pelo", "colitas", "Colitas"),
-    _it("pelo", "rulos", "Rulos", 40), _it("pelo", "rodete", "Rodete", 40),
-    _it("pelo", "punk", "Cresta", 80), _it("pelo", "pelado", "Rapado", 20),
+    _it("pelo", "rulos", "Rulos"), _it("pelo", "rodete", "Rodete"),
+    _it("pelo", "pelado", "Rapado"), _it("pelo", "punk", "Cresta", 80),
 
     _it("colorPelo", "negro", "Negro", color="#2b2320"), _it("colorPelo", "castano", "Castaño", color="#6b4226"),
     _it("colorPelo", "rubio", "Rubio", color="#e5b84f"), _it("colorPelo", "colorado", "Colorado", color="#c4532b"),
@@ -380,27 +436,26 @@ CATALOGO = [
     _it("colorPelo", "violeta", "Violeta", 60, color="#8d5be0"), _it("colorPelo", "verde", "Verde", 60, color="#36b37e"),
 
     _it("ojos", "normal", "Normales"), _it("ojos", "felices", "Felices"),
-    _it("ojos", "grandes", "Brillantes", 30), _it("ojos", "guino", "Guiño", 30),
+    _it("ojos", "grandes", "Brillantes"), _it("ojos", "guino", "Guiño"),
 
     _it("boca", "sonrisa", "Sonrisa"), _it("boca", "contenta", "Contenta"),
-    _it("boca", "lengua", "Lengua afuera", 30), _it("boca", "sorpresa", "Sorpresa", 30),
+    _it("boca", "lengua", "Lengua afuera"), _it("boca", "sorpresa", "Sorpresa"),
 
-    _it("ropa", "remera", "Remera"), _it("ropa", "rayas", "Rayada", 40),
+    _it("ropa", "remera", "Remera"), _it("ropa", "rayas", "Rayada"), _it("ropa", "guardapolvo", "Guardapolvo"),
     _it("ropa", "estrella", "Con estrella", 50), _it("ropa", "corazon", "Con corazón", 50),
     _it("ropa", "rayo", "Con rayo", 60), _it("ropa", "capa", "Capa de héroe", 120),
-    _it("ropa", "guardapolvo", "Guardapolvo", 0, nivel=2),
 
     _it("colorRopa", "azul", "Azul", color="#3d8bfd"), _it("colorRopa", "rojo", "Rojo", color="#e8505b"),
     _it("colorRopa", "verde", "Verde", color="#3bb273"), _it("colorRopa", "amarillo", "Amarillo", color="#ffc928"),
-    _it("colorRopa", "violeta", "Violeta", 20, color="#8f6bd8"), _it("colorRopa", "naranja", "Naranja", 20, color="#ff8a3d"),
-    _it("colorRopa", "rosa", "Rosa", 20, color="#ff7eb6"), _it("colorRopa", "negro", "Negro", 20, color="#34384a"),
+    _it("colorRopa", "violeta", "Violeta", color="#8f6bd8"), _it("colorRopa", "naranja", "Naranja", color="#ff8a3d"),
+    _it("colorRopa", "rosa", "Rosa", color="#ff7eb6"), _it("colorRopa", "negro", "Negro", color="#34384a"),
 
     _it("gorro", "ninguno", "Sin gorro"), _it("gorro", "gorra", "Gorra", 30), _it("gorro", "mono", "Moño", 30),
     _it("gorro", "flores", "Vincha de flores", 50), _it("gorro", "auriculares", "Auriculares", 70),
     _it("gorro", "mago", "Gorro de mago", 100), _it("gorro", "corona", "Corona", 150),
     _it("gorro", "astronauta", "Casco espacial", 0, medalla="m6"),
 
-    _it("anteojos", "ninguno", "Sin anteojos"), _it("anteojos", "redondos", "Redondos", 30),
+    _it("anteojos", "ninguno", "Sin anteojos"), _it("anteojos", "redondos", "Redondos"),
     _it("anteojos", "sol", "De sol", 50), _it("anteojos", "corazon", "Corazones", 80),
 
     _it("mascota", "ninguna", "Sin mascota"), _it("mascota", "pollito", "Pollito", 40, e="🐣"),

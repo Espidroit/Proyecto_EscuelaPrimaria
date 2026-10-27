@@ -25,7 +25,7 @@ import webbrowser
 from datetime import date, datetime, timedelta
 from functools import wraps
 
-from flask import Flask, abort, jsonify, request, send_file, send_from_directory, session
+from flask import Flask, abort, g, jsonify, request, send_file, send_from_directory, session
 
 import contenido as C
 import database as db
@@ -106,6 +106,53 @@ def requiere(rol):
             return f(*a, **k)
         return envuelta
     return deco
+
+
+# -----------------------------------------------------------------
+# Grados de la docente: cada una ve y maneja solo a los alumnos de sus grados
+# -----------------------------------------------------------------
+def leer_grados(v):
+    """Lista de grados elegidos ([1, 3]) → "1,3". Lanza ValueError si no sirve."""
+    if not isinstance(v, list) or not v or any(str(x) not in ("1", "2", "3") for x in v):
+        raise ValueError("Elegí al menos un grado (1.º, 2.º o 3.º).")
+    return ",".join(sorted({str(x) for x in v}))
+
+
+def mis_grados(con):
+    """Grados a cargo de la docente que tiene la sesión abierta, como tupla (1, 2)."""
+    if "grados" not in g:
+        r = con.execute("SELECT grados FROM docentes WHERE id=?", (session.get("uid"),)).fetchone()
+        g.grados = tuple(int(x) for x in (r[0] if r and r[0] else "1,2,3").split(","))
+    return g.grados
+
+
+def sql_grados(con, col="grado"):
+    """Filtro SQL «grado IN (…)» con los grados de la docente, y sus parámetros."""
+    gs = mis_grados(con)
+    return f"{col} IN ({','.join('?' * len(gs))})", gs
+
+
+def sql_mios(con, col="alumno_id"):
+    """Filtro SQL para tablas con alumno_id: solo alumnos de los grados de la docente."""
+    gs = mis_grados(con)
+    return f"{col} IN (SELECT id FROM alumnos WHERE grado IN ({','.join('?' * len(gs))}))", gs
+
+
+def alumno_mio(con, aid):
+    """El alumno, si es de un grado de la docente; si no, None (como si no existiera)."""
+    f, p = sql_grados(con)
+    r = con.execute(f"SELECT * FROM alumnos WHERE id=? AND {f}", (aid, *p)).fetchone()
+    return dict(r) if r else None
+
+
+def tarea_mia(con, t):
+    """La tarea es de alguno de mis grados (las viejas, sin grados, las ven todas)."""
+    return not t["grados"] or bool(set(int(x) for x in t["grados"].split(",")) & set(mis_grados(con)))
+
+
+def nombre_grados(gs):
+    gs = [f"{x}.º" for x in gs]
+    return gs[0] + " grado" if len(gs) == 1 else ", ".join(gs[:-1]) + " y " + gs[-1] + " grado"
 
 
 def cuerpo():
@@ -197,7 +244,11 @@ def items_validos(act, cfg):
 
 
 def tema_juego_activo(act, cfg):
-    return act["tipo"] == "cuento" or C.TIPOS[act["tipo"]]["tema"] not in cfg["temas_off"]
+    off = set(cfg["temas_off"])
+    if act["tipo"] == "cuento":
+        # Si la docente apagó los temas de todas sus preguntas, el cuento no aparece en el juego libre
+        return any(q["tema"] not in off for q in act["preguntas"])
+    return C.TIPOS[act["tipo"]]["tema"] not in off
 
 
 def niveles_para(grado, cfg):
@@ -262,7 +313,8 @@ def resumen_actividad(act):
 # =================================================================
 def asignados(con, tarea):
     if tarea["destino"] == "todos":
-        q = con.execute("SELECT id FROM alumnos WHERE activo=1")
+        gs = [int(x) for x in (tarea.get("grados") or "1,2,3").split(",")]
+        q = con.execute(f"SELECT id FROM alumnos WHERE activo=1 AND grado IN ({','.join('?' * len(gs))})", gs)
     elif tarea["destino"] in ("grado1", "grado2", "grado3"):
         q = con.execute("SELECT id FROM alumnos WHERE activo=1 AND grado=?", (int(tarea["destino"][-1]),))
     else:
@@ -324,6 +376,27 @@ def evaluar_medallas(con, alumno_id):
             con.execute("INSERT INTO medallas VALUES(?,?,?)", (alumno_id, mid, db.ahora()))
             nuevas.append(C.MEDALLAS_POR_ID[mid])
     return nuevas
+
+
+def medallas_posibles(con, alumno, cfg):
+    """Medallas que este chico puede ganar con las actividades que tiene a su alcance."""
+    vis = visibles_para(con, alumno, cfg) + [x for t in tareas_de_alumno(con, alumno) for x in t["actividades"]]
+    acts = {a["id"]: a for a in todas_actividades(con)}
+    vis = [acts[a["id"]] for a in vis if a["id"] in acts]
+    ids = {a["id"] for a in vis}
+    juegos = len({a["id"] for a in vis if a["tipo"] != "cuento"})
+    cuentos = len({a["id"] for a in vis if a["tipo"] == "cuento"})
+    off = set(cfg["temas_off"])
+    temas = set()
+    for a in vis:
+        if a["tipo"] == "cuento":
+            temas |= {q["tema"] for q in a["preguntas"] if q["tema"] not in off}
+        else:
+            temas.add(C.TIPOS[a["tipo"]]["tema"])
+    posibles = {"m1": cuentos >= 1, "m3": cuentos >= 3, "m6": cuentos >= 6, "j3": juegos >= 3,
+                "perf": bool(ids), "perf3": len(ids) >= 5, "rep": bool(ids), "t1": True, "t5": True}
+    posibles.update({"tema-" + k: k in temas for k in C.TEMAS})
+    return {k for k, v in posibles.items() if v}
 
 
 def estado_items(con, alumno):
@@ -456,11 +529,14 @@ def api_alumno_perfil():
     album = [{"id": i, "titulo": acts[i]["titulo"], "sticker": acts[i].get("sticker", "⭐"), "tipo": acts[i]["tipo"],
               "estrellas": mejores.get(i, 0)} for i in album_ids]
     pendientes = sum(1 for t in tareas_de_alumno(con, a) if not t["entregada"])
+    posibles = medallas_posibles(con, a, cfg)
     out = {
         "id": a["id"], "nombre": a["nombre"], "grado": a["grado"], "monedas": a["monedas"],
         "nivel": info_nivel(a["xp"]), "avatar": avatar_de(a), "items": estado_items(con, a),
         "estrellas": sum(mejores.values()), "hechas": len(mejores), "tareas_pendientes": pendientes,
-        "medallas": [{**m, "fecha": meds.get(m["id"])} for m in C.MEDALLAS], "album": album,
+        # Solo se muestran las medallas que ya ganó o que puede ganar con lo que tiene para jugar
+        "medallas": [{**m, "fecha": meds.get(m["id"])} for m in C.MEDALLAS
+                     if m["id"] in meds or m["id"] in posibles], "album": album,
         "cfg": {"mayus": a["grado"] == 1 and cfg["mayus_1"], "auto_leer": cfg["auto_leer"],
                 "voz_lenta": cfg["voz_lenta"], "voz_alegre": cfg["voz_alegre"], "sonido": cfg["sonido"], "voz": cfg["voz"]},
     }
@@ -669,7 +745,14 @@ def problema_password(pw):
     return None
 
 
+CABECERAS_PROXY = ("X-Forwarded-For", "X-Real-IP", "Forwarded", "CF-Connecting-IP", "True-Client-IP")
+
+
 def es_local():
+    # Con un túnel (Cloudflare, ngrok) los pedidos de internet llegan desde 127.0.0.1,
+    # pero el túnel agrega estas cabeceras: si están, el pedido NO viene de esta computadora.
+    if any(request.headers.get(h) for h in CABECERAS_PROXY):
+        return False
     return ip() in ("127.0.0.1", "::1", "localhost")
 
 
@@ -679,8 +762,8 @@ def api_docente_estado():
     n = con.execute("SELECT COUNT(*) FROM docentes").fetchone()[0]
     yo = None
     if session.get("rol") == "docente":
-        r = con.execute("SELECT nombre, usuario FROM docentes WHERE id=?", (session["uid"],)).fetchone()
-        yo = dict(r) if r else None
+        r = con.execute("SELECT nombre, usuario, grados FROM docentes WHERE id=?", (session["uid"],)).fetchone()
+        yo = {**dict(r), "grados": [int(x) for x in (r["grados"] or "1,2,3").split(",")]} if r else None
     abierto = db.leer_config(con)["registro_abierto"]
     con.close()
     return jsonify({"configurado": n > 0, "sesion": yo, "local": es_local(),
@@ -713,11 +796,16 @@ def api_docente_configurar():
     if problema_password(pw):
         con.close()
         return error(problema_password(pw))
+    try:
+        grados = leer_grados(d.get("grados"))
+    except ValueError as e:
+        con.close()
+        return error(str(e))
     if con.execute("SELECT 1 FROM docentes WHERE usuario=?", (usuario,)).fetchone():
         con.close()
         return error("Ese usuario ya existe. Elegí otro.")
-    cur = con.execute("INSERT INTO docentes(usuario, nombre, pass_hash, creado) VALUES(?,?,?,?)",
-                      (usuario, nombre, seg.hashear(pw), db.ahora()))
+    cur = con.execute("INSERT INTO docentes(usuario, nombre, pass_hash, creado, grados) VALUES(?,?,?,?,?)",
+                      (usuario, nombre, seg.hashear(pw), db.ahora(), grados))
     db.registrar(con, "Cuenta docente creada", usuario, ip())
     con.close()
     session.clear()
@@ -779,19 +867,31 @@ def api_docente_password():
 # =================================================================
 # API docente: estadísticas
 # =================================================================
+def entrega_tarde(entregada, limite):
+    """True si la tarea se terminó después del día límite."""
+    return bool(entregada and limite and entregada[:10] > limite)
+
+
 def pct(ok, n):
     return round(ok * 100 / n) if n else None
 
 
 def stats_temas(con, alumno_id=None):
-    sql = "SELECT tema, SUM(primera), COUNT(*) FROM respuestas" + (" WHERE alumno_id=?" if alumno_id else "") + " GROUP BY tema"
-    return {r[0]: {"pct": pct(r[1], r[2]), "n": r[2]} for r in con.execute(sql, (alumno_id,) if alumno_id else ())}
+    if alumno_id:
+        filtro, params = "alumno_id=?", (alumno_id,)
+    else:
+        filtro, params = sql_mios(con)
+    sql = f"SELECT tema, SUM(primera), COUNT(*) FROM respuestas WHERE {filtro} GROUP BY tema"
+    return {r[0]: {"pct": pct(r[1], r[2]), "n": r[2]} for r in con.execute(sql, params)}
 
 
 def semanas(con, alumno_id=None, tema=None, cuantas=10):
     filtros, params = [], []
     if alumno_id:
         filtros.append("alumno_id=?"); params.append(alumno_id)
+    else:
+        f, p = sql_mios(con)
+        filtros.append(f); params.extend(p)
     if tema:
         filtros.append("tema=?"); params.append(tema)
     where = (" WHERE " + " AND ".join(filtros)) if filtros else ""
@@ -826,10 +926,12 @@ def api_docente_resumen():
     con = con_db()
     cfg = db.leer_config(con)
     acts = {a["id"]: a for a in todas_actividades(con)}
-    alumnos = [dict(r) for r in con.execute("SELECT * FROM alumnos WHERE activo=1 ORDER BY nombre COLLATE NOCASE")]
+    fg, pg = sql_grados(con)
+    fm, pm = sql_mios(con)
+    alumnos = [dict(r) for r in con.execute(f"SELECT * FROM alumnos WHERE activo=1 AND {fg} ORDER BY nombre COLLATE NOCASE", pg)]
     hace7 = (datetime.now() - timedelta(days=7)).strftime("%Y-%m-%d %H:%M:%S")
-    semana = con.execute("SELECT COUNT(*) FROM intentos WHERE fecha>=?", (hace7,)).fetchone()[0]
-    tot = con.execute("SELECT SUM(primera), COUNT(*) FROM respuestas").fetchone()
+    semana = con.execute(f"SELECT COUNT(*) FROM intentos WHERE fecha>=? AND {fm}", (hace7, *pm)).fetchone()[0]
+    tot = con.execute(f"SELECT SUM(primera), COUNT(*) FROM respuestas WHERE {fm}", pm).fetchone()
     temas_on = [t for t in C.TEMAS if t not in cfg["temas_off"]]
     grupo = stats_temas(con)
     mapa = {r[0]: {} for r in con.execute("SELECT id FROM alumnos")}
@@ -843,9 +945,10 @@ def api_docente_resumen():
         filas.append({"id": a["id"], "nombre": a["nombre"], "grado": a["grado"], "avatar": avatar_de(a),
                       "temas": {t: st.get(t) for t in temas_on}, "pct": pct(ok_n[0] or 0, ok_n[1]),
                       "ultima": ultimo.get(a["id"])})
-        bajos = [C.TEMAS[t]["n"] for t in temas_on if st.get(t) and st[t]["n"] >= 3 and st[t]["pct"] < 50]
+        bajos = [t for t in temas_on if st.get(t) and st[t]["n"] >= 3 and st[t]["pct"] < 50]
         if bajos:
-            alertas.append({"id": a["id"], "nombre": a["nombre"], "motivo": "Le cuesta: " + ", ".join(bajos)})
+            alertas.append({"id": a["id"], "nombre": a["nombre"], "temas": bajos,
+                            "motivo": "Le cuesta: " + ", ".join(C.TEMAS[t]["n"] for t in bajos)})
         if not ultimo.get(a["id"]):
             alertas.append({"id": a["id"], "nombre": a["nombre"], "motivo": "Todavía no jugó ninguna actividad"})
         elif ultimo[a["id"]] < hace7:
@@ -854,10 +957,10 @@ def api_docente_resumen():
                   "fecha": r["fecha"], "estrellas": r["estrellas"], "aciertos": r["aciertos"], "total": r["total"],
                   "tarea": r["tarea_id"] is not None}
                  for r in con.execute("SELECT i.*, a.nombre FROM intentos i JOIN alumnos a ON a.id=i.alumno_id "
-                                      "ORDER BY i.fecha DESC, i.id DESC LIMIT 8")]
+                                      f"WHERE a.{fg} ORDER BY i.fecha DESC, i.id DESC LIMIT 8", pg)]
     hoy = date.today().isoformat()
     tareas = []
-    for t in con.execute("SELECT * FROM tareas WHERE archivada=0 ORDER BY creada DESC LIMIT 6"):
+    for t in [t for t in con.execute("SELECT * FROM tareas WHERE archivada=0 ORDER BY creada DESC") if tarea_mia(con, t)][:6]:
         asig = asignados(con, dict(t))
         ent = con.execute("SELECT COUNT(*) FROM tarea_entregas WHERE tarea_id=? AND alumno_id IN (%s)" %
                           ",".join("?" * len(asig)), (t["id"], *asig)).fetchone()[0] if asig else 0
@@ -890,7 +993,8 @@ def api_docente_alumnos():
             "clave": json.loads(r["clave"]), "avatar": avatar_de(r), "nivel": info_nivel(r["xp"])["num"],
             "monedas": r["monedas"], "actividades": cuenta.get(r["id"], 0), "pct": prom.get(r["id"]),
             "ultima": ultimo.get(r["id"])}
-           for r in con.execute("SELECT * FROM alumnos ORDER BY activo DESC, grado, nombre COLLATE NOCASE")]
+           for r in con.execute(f"SELECT * FROM alumnos WHERE {sql_grados(con)[0]} "
+                                "ORDER BY activo DESC, grado, nombre COLLATE NOCASE", mis_grados(con))]
     con.close()
     return jsonify(out)
 
@@ -903,6 +1007,11 @@ def api_docente_alumno_crear():
     if str(d.get("grado")) not in ("1", "2", "3"):
         return error("Elegí el grado (1.º, 2.º o 3.º).")
     grado = int(d.get("grado"))
+    con = con_db()
+    if grado not in mis_grados(con):
+        con.close()
+        return error(f"Solo podés cargar alumnos de tus grados ({nombre_grados(mis_grados(con))}). Podés cambiarlos en Ajustes.", 403)
+    con.close()
     try:
         nombres = [nombre_alumno(n) for n in nombres if str(n or "").strip()]
     except ValueError as e:
@@ -923,7 +1032,7 @@ def api_docente_alumno_crear():
     repetidos = [n for n in nombres if n.lower() in existentes]
     if repetidos:
         con.close()
-        return error("Ya existe un alumno con ese nombre: " + ", ".join(f"«{n}»" for n in repetidos) + ". Agregá la inicial del apellido.")
+        return error("Ya existe un alumno con ese nombre (puede ser de otro grado): " + ", ".join(f"«{n}»" for n in repetidos) + ". Agregá la inicial del apellido.")
     for n in nombres:
         av = dict(C.AVATAR_INICIAL)
         av["piel"] = secrets.choice(["p1", "p2", "p3", "p4", "p5", "p6"])
@@ -942,7 +1051,7 @@ def api_docente_alumno_crear():
 def api_docente_alumno_editar(aid):
     d = cuerpo()
     con = con_db()
-    a = con.execute("SELECT * FROM alumnos WHERE id=?", (aid,)).fetchone()
+    a = alumno_mio(con, aid)
     if not a:
         con.close()
         return error("No existe.", 404)
@@ -956,6 +1065,9 @@ def api_docente_alumno_editar(aid):
         con.close()
         return error("Elegí el grado (1.º, 2.º o 3.º).")
     grado = int(d.get("grado", a["grado"]))
+    if grado not in mis_grados(con):
+        con.close()
+        return error(f"Solo podés pasarlo a uno de tus grados ({nombre_grados(mis_grados(con))}).", 403)
     if con.execute("SELECT 1 FROM alumnos WHERE lower(nombre)=lower(?) AND id<>?", (nombre, aid)).fetchone():
         con.close()
         return error("Ya existe otro alumno con ese nombre.")
@@ -969,7 +1081,7 @@ def api_docente_alumno_editar(aid):
 @requiere("docente")
 def api_docente_alumno_clave(aid):
     con = con_db()
-    if not existe(con, "alumnos", aid):
+    if not alumno_mio(con, aid):
         con.close()
         return error("Ese alumno no existe.", 404)
     c = clave_nueva()
@@ -983,7 +1095,7 @@ def api_docente_alumno_clave(aid):
 @requiere("docente")
 def api_docente_alumno_reiniciar(aid):
     con = con_db()
-    if not existe(con, "alumnos", aid):
+    if not alumno_mio(con, aid):
         con.close()
         return error("Ese alumno no existe.", 404)
     for t in ("respuestas", "intentos", "medallas", "inventario", "tarea_entregas"):
@@ -998,7 +1110,7 @@ def api_docente_alumno_reiniciar(aid):
 @requiere("docente")
 def api_docente_alumno_borrar(aid):
     con = con_db()
-    if not existe(con, "alumnos", aid):
+    if not alumno_mio(con, aid):
         con.close()
         return error("Ese alumno no existe.", 404)
     con.execute("DELETE FROM alumnos WHERE id=?", (aid,))
@@ -1011,11 +1123,10 @@ def api_docente_alumno_borrar(aid):
 @requiere("docente")
 def api_docente_alumno_ficha(aid):
     con = con_db()
-    a = con.execute("SELECT * FROM alumnos WHERE id=?", (aid,)).fetchone()
+    a = alumno_mio(con, aid)
     if not a:
         con.close()
         return error("No existe.", 404)
-    a = dict(a)
     acts = {x["id"]: x for x in todas_actividades(con)}
     st = stats_temas(con, aid)
     temas = [{"id": t, "n_tema": C.TEMAS[t]["n"], "i": C.TEMAS[t]["i"], "obj": C.TEMAS[t]["obj"],
@@ -1034,6 +1145,7 @@ def api_docente_alumno_ficha(aid):
         hechas = sum(1 for x in t["actividades"] if x["estrellas"])
         estado = "entregada" if t["entregada"] else ("vencida" if t["fecha_limite"] and t["fecha_limite"] < hoy else "pendiente")
         tareas.append({"titulo": t["titulo"], "fecha_limite": t["fecha_limite"], "estado": estado, "entregada": t["entregada"],
+                       "tarde": entrega_tarde(t["entregada"], t["fecha_limite"]),
                        "hechas": hechas, "total": len(t["actividades"])})
     obs = [dict(r) for r in con.execute("SELECT id, fecha, texto FROM observaciones WHERE alumno_id=? ORDER BY fecha DESC", (aid,))]
     tot = con.execute("SELECT SUM(primera), COUNT(*) FROM respuestas WHERE alumno_id=?", (aid,)).fetchone()
@@ -1059,7 +1171,7 @@ def api_docente_obs_crear(aid):
     if len(t) > 1000:
         return error(f"La observación es muy larga ({len(t)} letras; el máximo es 1000).")
     con = con_db()
-    if not con.execute("SELECT 1 FROM alumnos WHERE id=?", (aid,)).fetchone():
+    if not alumno_mio(con, aid):
         con.close()
         return error("No existe.", 404)
     con.execute("INSERT INTO observaciones(alumno_id, fecha, texto) VALUES(?,?,?)", (aid, db.ahora(), t))
@@ -1072,7 +1184,8 @@ def api_docente_obs_crear(aid):
 @requiere("docente")
 def api_docente_obs_borrar(oid):
     con = con_db()
-    if not existe(con, "observaciones", oid):
+    f, p = sql_mios(con)
+    if not con.execute(f"SELECT 1 FROM observaciones WHERE id=? AND {f}", (oid, *p)).fetchone():
         con.close()
         return error("Esa observación ya no existe.", 404)
     con.execute("DELETE FROM observaciones WHERE id=?", (oid,))
@@ -1084,7 +1197,7 @@ def api_docente_obs_borrar(oid):
 # =================================================================
 # API docente: tareas
 # =================================================================
-DESTINOS = {"todos": "Todo el grupo", "grado1": "1.º grado", "grado2": "2.º grado", "grado3": "3.º grado", "elegidos": "Alumnos elegidos"}
+DESTINOS = {"todos": "Todos mis grados", "grado1": "1.º grado", "grado2": "2.º grado", "grado3": "3.º grado", "elegidos": "Alumnos elegidos"}
 
 
 @app.get("/api/docente/tareas")
@@ -1096,6 +1209,8 @@ def api_docente_tareas():
     out = []
     for t in con.execute("SELECT * FROM tareas ORDER BY archivada, creada DESC"):
         t = dict(t)
+        if not tarea_mia(con, t):
+            continue
         asig = asignados(con, t)
         ent = {r[0] for r in con.execute("SELECT alumno_id FROM tarea_entregas WHERE tarea_id=?", (t["id"],))}
         out.append({**t, "destino_n": DESTINOS.get(t["destino"], t["destino"]), "asignados": len(asig),
@@ -1139,18 +1254,29 @@ def api_docente_tarea_crear():
         con.close()
         return error("Una tarea puede tener hasta 12 actividades.")
     alumnos = []
+    gs = mis_grados(con)
+    grados = ",".join(map(str, gs))
+    if destino.startswith("grado"):
+        if int(destino[-1]) not in gs:
+            con.close()
+            return error(f"Solo podés asignar actividades a tus grados ({nombre_grados(gs)}).", 403)
+        grados = destino[-1]
     if destino == "elegidos":
-        validos = {r[0] for r in con.execute("SELECT id FROM alumnos WHERE activo=1")}
+        fg, pg = sql_grados(con)
+        validos = {r[0] for r in con.execute(f"SELECT id FROM alumnos WHERE activo=1 AND {fg}", pg)}
         alumnos = [int(x) for x in (d.get("alumnos") or []) if str(x).isdigit() and int(x) in validos]
         if not alumnos:
             con.close()
             return error("Elegí al menos un alumno.")
+    elif destino == "todos" and not con.execute(f"SELECT 1 FROM alumnos WHERE activo=1 AND {sql_grados(con)[0]}", gs).fetchone():
+        con.close()
+        return error("Todavía no hay alumnos activos en tus grados.")
     elif destino != "todos" and not con.execute(
             "SELECT 1 FROM alumnos WHERE activo=1 AND grado=?", (int(destino[-1]),)).fetchone():
         con.close()
         return error(f"No hay alumnos activos en {DESTINOS[destino]}.")
-    cur = con.execute("INSERT INTO tareas(titulo, consigna, fecha_limite, destino, recompensa, creada) VALUES(?,?,?,?,?,?)",
-                      (titulo, consigna, limite, destino, recompensa, db.ahora()))
+    cur = con.execute("INSERT INTO tareas(titulo, consigna, fecha_limite, destino, recompensa, creada, grados) VALUES(?,?,?,?,?,?,?)",
+                      (titulo, consigna, limite, destino, recompensa, db.ahora(), grados))
     for i, a in enumerate(acts):
         con.execute("INSERT INTO tarea_actividades VALUES(?,?,?)", (cur.lastrowid, a, i))
     for a in alumnos:
@@ -1160,12 +1286,53 @@ def api_docente_tarea_crear():
     return jsonify({"ok": True, "id": cur.lastrowid})
 
 
+def actividades_de_tema(con, alumno, tema, cfg):
+    """Actividades publicadas de su grado que trabajan ese tema; primero las que menos estrellas tiene."""
+    niveles = niveles_para(alumno["grado"], cfg)
+    mejores = mejores_estrellas(con, alumno["id"])
+    acts = [a for a in todas_actividades(con) if a.get("estado", "publicado") == "publicado" and int(a["nivel"]) in niveles
+            and (any(q["tema"] == tema for q in a["preguntas"]) if a["tipo"] == "cuento"
+                 else C.TIPOS[a["tipo"]]["tema"] == tema)]
+    acts.sort(key=lambda a: (mejores.get(a["id"], 0), int(a["nivel"])))
+    return acts
+
+
+@app.post("/api/docente/alumnos/<int:aid>/refuerzo")
+@requiere("docente")
+def api_docente_refuerzo(aid):
+    """Crea una tarea de repaso de un tema para un alumno (botón «Asignar refuerzo»)."""
+    tema = texto(cuerpo().get("tema"), 30)
+    if tema not in C.TEMAS:
+        return error("Tema inválido.")
+    con = con_db()
+    al = alumno_mio(con, aid)
+    if not al or not al["activo"]:
+        con.close()
+        return error("No existe.", 404)
+    acts = actividades_de_tema(con, al, tema, db.leer_config(con))[:3]
+    if not acts:
+        con.close()
+        return error("No hay actividades de ese tema para su grado. Podés crear una en «Actividades».")
+    T = C.TEMAS[tema]
+    titulo = f"Repaso: {T['n']}"
+    consigna = f"¡Vamos a repasar «{T['kid']}»! Hacé estas actividades con calma. 💪"
+    limite = (date.today() + timedelta(days=7)).isoformat()
+    cur = con.execute("INSERT INTO tareas(titulo, consigna, fecha_limite, destino, recompensa, creada, grados) VALUES(?,?,?,?,?,?,?)",
+                      (titulo, consigna, limite, "elegidos", 30, db.ahora(), str(al["grado"])))
+    for i, a in enumerate(acts):
+        con.execute("INSERT INTO tarea_actividades VALUES(?,?,?)", (cur.lastrowid, a["id"], i))
+    con.execute("INSERT INTO tarea_alumnos VALUES(?,?)", (cur.lastrowid, aid))
+    con.commit()
+    con.close()
+    return jsonify({"ok": True, "id": cur.lastrowid, "titulo": titulo, "actividades": [x["titulo"] for x in acts]})
+
+
 @app.get("/api/docente/tareas/<int:tid>")
 @requiere("docente")
 def api_docente_tarea_ver(tid):
     con = con_db()
     t = con.execute("SELECT * FROM tareas WHERE id=?", (tid,)).fetchone()
-    if not t:
+    if not t or not tarea_mia(con, t):
         con.close()
         return error("No existe.", 404)
     t = dict(t)
@@ -1178,6 +1345,7 @@ def api_docente_tarea_ver(tid):
             "GROUP BY actividad_id", (aid, tid))}
         ent = con.execute("SELECT fecha FROM tarea_entregas WHERE tarea_id=? AND alumno_id=?", (tid, aid)).fetchone()
         filas.append({"id": aid, "nombre": al["nombre"], "avatar": avatar_de(al), "entregada": ent[0] if ent else None,
+                      "tarde": entrega_tarde(ent[0] if ent else None, t["fecha_limite"]),
                       "actividades": [{"estrellas": mej[a["id"]][0], "pct": pct(mej[a["id"]][1], mej[a["id"]][2])}
                                       if a["id"] in mej else None for a in acts]})
     con.close()
@@ -1189,7 +1357,8 @@ def api_docente_tarea_ver(tid):
 @requiere("docente")
 def api_docente_tarea_archivar(tid):
     con = con_db()
-    if not existe(con, "tareas", tid):
+    t = con.execute("SELECT * FROM tareas WHERE id=?", (tid,)).fetchone()
+    if not t or not tarea_mia(con, t):
         con.close()
         return error("Esa tarea no existe.", 404)
     con.execute("UPDATE tareas SET archivada=1-archivada WHERE id=?", (tid,))
@@ -1202,7 +1371,8 @@ def api_docente_tarea_archivar(tid):
 @requiere("docente")
 def api_docente_tarea_borrar(tid):
     con = con_db()
-    if not existe(con, "tareas", tid):
+    t = con.execute("SELECT * FROM tareas WHERE id=?", (tid,)).fetchone()
+    if not t or not tarea_mia(con, t):
         con.close()
         return error("Esa tarea no existe.", 404)
     con.execute("UPDATE intentos SET tarea_id=NULL WHERE tarea_id=?", (tid,))
@@ -1220,10 +1390,11 @@ def api_docente_tarea_borrar(tid):
 def api_docente_actividades():
     con = con_db()
     cfg = db.leer_config(con)
+    fm, pm = sql_mios(con)
     uso = {r[0]: (r[1], r[2]) for r in con.execute(
-        "SELECT actividad_id, COUNT(*), COUNT(DISTINCT alumno_id) FROM intentos GROUP BY actividad_id")}
+        f"SELECT actividad_id, COUNT(*), COUNT(DISTINCT alumno_id) FROM intentos WHERE {fm} GROUP BY actividad_id", pm)}
     res = {r[0]: pct(r[1], r[2]) for r in con.execute(
-        "SELECT actividad_id, SUM(primera), COUNT(*) FROM respuestas GROUP BY actividad_id")}
+        f"SELECT actividad_id, SUM(primera), COUNT(*) FROM respuestas WHERE {fm} GROUP BY actividad_id", pm)}
     out = []
     for a in todas_actividades(con):
         r = resumen_actividad(a)
@@ -1241,8 +1412,9 @@ def api_docente_actividad(aid):
     a = actividad(con, aid)
     errores = {}
     if a:
+        fm, pm = sql_mios(con)
         errores = {r[0]: {"pct": pct(r[1], r[2]), "n": r[2]} for r in con.execute(
-            "SELECT item_idx, SUM(primera), COUNT(*) FROM respuestas WHERE actividad_id=? GROUP BY item_idx", (aid,))}
+            f"SELECT item_idx, SUM(primera), COUNT(*) FROM respuestas WHERE actividad_id=? AND {fm} GROUP BY item_idx", (aid, *pm))}
     con.close()
     if not a:
         return error("No existe.", 404)
@@ -1586,10 +1758,26 @@ def api_docente_docentes():
     ult = {r[0]: r[1] for r in con.execute(
         "SELECT usuario, MAX(fecha) FROM auditoria WHERE evento IN ('Ingreso correcto','Cuenta docente creada') GROUP BY usuario")}
     out = [{"id": r["id"], "nombre": r["nombre"], "usuario": r["usuario"], "creado": r["creado"],
-            "ultimo": ult.get(r["usuario"]), "yo": r["id"] == session["uid"]}
+            "ultimo": ult.get(r["usuario"]), "yo": r["id"] == session["uid"],
+            "grados": [int(x) for x in (r["grados"] or "1,2,3").split(",")]}
            for r in con.execute("SELECT * FROM docentes ORDER BY creado")]
     con.close()
     return jsonify(out)
+
+
+@app.put("/api/docente/mis-grados")
+@requiere("docente")
+def api_docente_mis_grados():
+    """La docente cambia los grados que tiene a cargo."""
+    try:
+        grados = leer_grados(cuerpo().get("grados"))
+    except ValueError as e:
+        return error(str(e))
+    con = con_db()
+    con.execute("UPDATE docentes SET grados=? WHERE id=?", (grados, session["uid"]))
+    con.commit()
+    con.close()
+    return jsonify({"ok": True, "grados": [int(x) for x in grados.split(",")]})
 
 
 @app.delete("/api/docente/docentes/<int:did>")
@@ -1633,8 +1821,9 @@ def api_docente_exportar():
     w = csv.writer(buf, delimiter=";")
     w.writerow(["Fecha", "Alumno", "Grado", "Actividad", "Tipo", "Correctas a la primera", "Total", "Porcentaje",
                 "Estrellas", "Minutos", "Tarea"])
+    fg, pg = sql_grados(con, "a.grado")
     for r in con.execute("SELECT i.*, a.nombre, a.grado, t.titulo tt FROM intentos i JOIN alumnos a ON a.id=i.alumno_id "
-                         "LEFT JOIN tareas t ON t.id=i.tarea_id ORDER BY i.fecha"):
+                         f"LEFT JOIN tareas t ON t.id=i.tarea_id WHERE {fg} ORDER BY i.fecha", pg):
         act = acts.get(r["actividad_id"])
         w.writerow([r["fecha"], celda(r["nombre"]), r["grado"], celda(act["titulo"] if act else r["actividad_id"]),
                     C.TIPOS.get(act["tipo"], {}).get("n", "") if act else "", r["aciertos"], r["total"],

@@ -39,7 +39,8 @@ class Base(unittest.TestCase):
         cls.c = A.app.test_client()
         A.LIMITE_DOCENTE.bloqueados.clear()
         A.LIMITE_ALUMNO.bloqueados.clear()
-        s, _ = cls.pedir("post", "/api/docente/configurar", {"nombre": "Seño Prueba", "usuario": "seno", "password": CLAVE_DOCENTE})
+        s, _ = cls.pedir("post", "/api/docente/configurar", {"nombre": "Seño Prueba", "usuario": "seno", "password": CLAVE_DOCENTE,
+                                                                  "grados": [1, 2, 3]})
         if s != 200:  # ya existía: entrar
             cls.docente()
 
@@ -114,7 +115,9 @@ class TestCuentaDocente(Base):
         self.rechaza("post", url, {"nombre": "Otra", "usuario": "la otra", "password": "clave1234"}, 400, "usuario")
         self.rechaza("post", url, {"nombre": " ", "usuario": "otra", "password": "clave1234"}, 400, "nombre")
         self.rechaza("post", url, {"nombre": "<b>Otra</b>", "usuario": "otra", "password": "clave1234"}, 400, "signos")
-        self.rechaza("post", url, {"nombre": "Otra", "usuario": "seno", "password": "clave1234"}, 400, "ya existe")
+        self.rechaza("post", url, {"nombre": "Otra", "usuario": "otra", "password": "clave1234"}, 400, "grado")
+        self.rechaza("post", url, {"nombre": "Otra", "usuario": "otra", "password": "clave1234", "grados": [4]}, 400, "grado")
+        self.rechaza("post", url, {"nombre": "Otra", "usuario": "seno", "password": "clave1234", "grados": [1]}, 400, "ya existe")
         self.docente()
 
     def test_cambio_de_contrasena(self):
@@ -438,6 +441,141 @@ class TestPanelYExportar(Base):
         r = self.c.get("/api/docente/copia", environ_base={"REMOTE_ADDR": "127.0.0.1"})
         self.assertEqual(r.status_code, 200)
         self.assertTrue(r.data.startswith(b"SQLite format 3"))
+
+
+# =================================================================
+class TestMejoras(Base):
+    """Cambios de la revisión: medallas posibles, refuerzo, entregas tarde, túnel y temas apagados."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.p1 = cls.alumno("Primero Medallas", 1)
+        cls.p3 = cls.alumno("Tercero Medallas", 3)
+
+    def entrar(self, al):
+        A.LIMITE_ALUMNO.bloqueados.clear()
+        self.acepta("post", "/api/alumno/ingresar", {"id": al["id"], "clave": al["clave"]})
+
+    def test_nombres_de_medallas_y_niveles_neutros(self):
+        for m in C.MEDALLAS + C.NIVELES:
+            self.assertNotRegex(m["n"], r"(?i)\b(lector|jugador|maestro|rey|mago|pensador|exploradora|guardián)\b")
+
+    def test_hay_cuentos_suficientes_para_cada_grado(self):
+        por_nivel = {n: sum(1 for a in C.ACTIVIDADES_BASE if a["tipo"] == "cuento" and a["nivel"] == n) for n in (1, 2, 3)}
+        self.assertGreaterEqual(por_nivel[1], 6)   # 1.º puede ganar «Ratón de biblioteca» (6 cuentos)
+        self.assertGreaterEqual(por_nivel[3], 4)
+
+    def test_primer_grado_solo_ve_medallas_que_puede_ganar(self):
+        self.entrar(self.p1)
+        ids = {m["id"] for m in self.pedir("get", "/api/alumno/perfil")[1]["medallas"]}
+        self.assertIn("m6", ids)
+        for imposible in ("tema-clases", "tema-ortografia", "tema-sinonimos"):
+            self.assertNotIn(imposible, ids)
+        self.entrar(self.p3)
+        self.assertIn("tema-clases", {m["id"] for m in self.pedir("get", "/api/alumno/perfil")[1]["medallas"]})
+        self.docente()
+
+    def test_refuerzo_crea_tarea_para_el_alumno(self):
+        self.rechaza("post", f"/api/docente/alumnos/{self.p1['id']}/refuerzo", {"tema": "nada"}, 400, "inválido")
+        self.rechaza("post", f"/api/docente/alumnos/{self.p1['id']}/refuerzo", {"tema": "clases"}, 400, "no hay actividades")
+        j = self.acepta("post", f"/api/docente/alumnos/{self.p1['id']}/refuerzo", {"tema": "secuencia"})
+        self.assertTrue(1 <= len(j["actividades"]) <= 3)
+        t = self.acepta("get", f"/api/docente/tareas/{j['id']}")
+        self.assertEqual([a["id"] for a in t["alumnos"]], [self.p1["id"]])
+        self.assertTrue(all(a["nivel"] == 1 for a in t["actividades"]))
+        self.entrar(self.p1)
+        self.assertTrue(any(x["id"] == j["id"] for x in self.pedir("get", "/api/alumno/tareas")[1]))
+        self.docente()
+
+    def test_entrega_fuera_de_termino(self):
+        self.assertTrue(A.entrega_tarde("2026-05-03 10:00:00", "2026-05-02"))
+        self.assertFalse(A.entrega_tarde("2026-05-02 23:00:00", "2026-05-02"))
+        self.assertFalse(A.entrega_tarde(None, "2026-05-02"))
+        self.assertFalse(A.entrega_tarde("2026-05-03 10:00:00", None))
+
+    def test_tunel_no_cuenta_como_esta_computadora(self):
+        r = self.c.get("/api/docente/estado", headers={"X-Forwarded-For": "200.1.2.3"}, environ_base={"REMOTE_ADDR": "127.0.0.1"})
+        self.assertFalse(r.get_json()["local"])
+        r = self.c.get("/api/docente/estado", headers={"CF-Connecting-IP": "200.1.2.3"}, environ_base={"REMOTE_ADDR": "127.0.0.1"})
+        self.assertFalse(r.get_json()["local"])
+        self.assertTrue(self.pedir("get", "/api/docente/estado")[1]["local"])
+
+    def test_cuento_con_todos_sus_temas_apagados_no_aparece(self):
+        temas_bobi = sorted({q["tema"] for q in C.ACTIVIDADES_BASE[0]["preguntas"]})
+        self.acepta("put", "/api/docente/config", {"temas_off": temas_bobi})
+        try:
+            self.entrar(self.p1)
+            ids = {a["id"] for a in self.pedir("get", "/api/alumno/actividades")[1]}
+            self.assertNotIn("bobi", ids)
+        finally:
+            self.docente()
+            self.acepta("put", "/api/docente/config", {"temas_off": []})
+
+
+# =================================================================
+class TestGradosDocente(Base):
+    """Cada docente ve y maneja solo a los alumnos de sus grados."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.de1 = cls.alumno("Grado Uno Aislado", 1)
+        cls.de3 = cls.alumno("Grado Tres Aislado", 3)
+
+    def setUp(self):
+        self.acepta("put", "/api/docente/mis-grados", {"grados": [1]})
+
+    def tearDown(self):
+        self.acepta("put", "/api/docente/mis-grados", {"grados": [1, 2, 3]})
+
+    def test_validacion(self):
+        self.rechaza("put", "/api/docente/mis-grados", {"grados": []}, 400, "grado")
+        self.rechaza("put", "/api/docente/mis-grados", {"grados": ["x"]}, 400, "grado")
+        self.assertEqual(self.acepta("get", "/api/docente/estado")["sesion"]["grados"], [1])
+
+    def test_solo_ve_sus_alumnos(self):
+        nombres = {a["nombre"] for a in self.pedir("get", "/api/docente/alumnos")[1]}
+        self.assertIn("Grado Uno Aislado", nombres)
+        self.assertNotIn("Grado Tres Aislado", nombres)
+        self.assertTrue(all(a["grado"] == 1 for a in self.acepta("get", "/api/docente/resumen")["alumnos"]))
+        r = self.c.get("/api/docente/exportar.csv", environ_base={"REMOTE_ADDR": "127.0.0.1"})
+        self.assertNotIn("Grado Tres Aislado", r.data.decode("utf-8-sig"))
+
+    def test_no_puede_tocar_alumnos_de_otro_grado(self):
+        otro = self.de3["id"]
+        self.rechaza("get", f"/api/docente/alumnos/{otro}", None, 404, "no existe")
+        self.rechaza("put", f"/api/docente/alumnos/{otro}", {"nombre": "Hackeado"}, 404, "no existe")
+        self.rechaza("post", f"/api/docente/alumnos/{otro}/clave", {}, 404, "no existe")
+        self.rechaza("post", f"/api/docente/alumnos/{otro}/observaciones", {"texto": "hola"}, 404, "no existe")
+        self.rechaza("post", f"/api/docente/alumnos/{otro}/refuerzo", {"tema": "lugar"}, 404, "no existe")
+        self.rechaza("delete", f"/api/docente/alumnos/{otro}", None, 404, "no existe")
+        self.rechaza("post", "/api/docente/alumnos", {"nombres": ["Nuevo De Tres"], "grado": 3}, 403, "tus grados")
+        self.rechaza("put", f"/api/docente/alumnos/{self.de1['id']}", {"grado": 3}, 403, "tus grados")
+
+    def test_misiones_por_grado(self):
+        self.rechaza("post", "/api/docente/tareas", {"titulo": "De tercero", "actividades": ["bobi"], "destino": "grado3"}, 403, "tus grados")
+        tid = self.acepta("post", "/api/docente/tareas", {"titulo": "Para mis grados", "actividades": ["bobi"], "destino": "todos"})["id"]
+        asignados = {a["id"] for a in self.acepta("get", f"/api/docente/tareas/{tid}")["alumnos"]}
+        self.assertIn(self.de1["id"], asignados)
+        self.assertNotIn(self.de3["id"], asignados)
+        # otra docente, de 3.º, no la ve
+        self.acepta("put", "/api/docente/mis-grados", {"grados": [3]})
+        self.assertFalse(any(t["id"] == tid for t in self.pedir("get", "/api/docente/tareas")[1]))
+        self.rechaza("get", f"/api/docente/tareas/{tid}", None, 404, "no existe")
+
+
+class TestAvatarGratis(unittest.TestCase):
+    def test_lo_fisico_es_gratis_y_los_extras_cuestan(self):
+        fisico = ("piel", "ojos", "boca", "colorRopa")
+        for it in C.CATALOGO:
+            if it["cat"] in fisico:
+                self.assertFalse(it["precio"] or it["nivel"] or it["medalla"], it["id"])
+        for iid in ("pelo:rulos", "colorPelo:negro", "ropa:remera", "ropa:guardapolvo", "anteojos:redondos"):
+            it = C.CATALOGO_POR_ID[iid]
+            self.assertFalse(it["precio"] or it["nivel"] or it["medalla"], iid)
+        for cat in ("gorro", "mascota", "fondo", "marco"):
+            self.assertTrue(any(i["precio"] or i["nivel"] or i["medalla"] for i in C.CATALOGO if i["cat"] == cat), cat)
 
 
 if __name__ == "__main__":

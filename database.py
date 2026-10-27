@@ -17,7 +17,8 @@ CREATE TABLE IF NOT EXISTS docentes(
     usuario TEXT UNIQUE NOT NULL,
     nombre TEXT NOT NULL,
     pass_hash TEXT NOT NULL,
-    creado TEXT NOT NULL
+    creado TEXT NOT NULL,
+    grados TEXT NOT NULL DEFAULT '1,2,3'   -- grados a cargo de la docente (ve solo esos alumnos)
 );
 CREATE TABLE IF NOT EXISTS alumnos(
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -81,7 +82,8 @@ CREATE TABLE IF NOT EXISTS tareas(
     destino TEXT NOT NULL DEFAULT 'todos',
     recompensa INTEGER NOT NULL DEFAULT 30,
     creada TEXT NOT NULL,
-    archivada INTEGER NOT NULL DEFAULT 0
+    archivada INTEGER NOT NULL DEFAULT 0,
+    grados TEXT                             -- grados de la docente que la creó (NULL = todos)
 );
 CREATE TABLE IF NOT EXISTS tarea_actividades(
     tarea_id INTEGER NOT NULL REFERENCES tareas(id) ON DELETE CASCADE,
@@ -147,9 +149,19 @@ def conectar():
     return con
 
 
+# Columnas agregadas después de la primera versión: si la base es vieja, se agregan solas
+COLUMNAS_NUEVAS = [
+    ("docentes", "grados", "TEXT NOT NULL DEFAULT '1,2,3'"),
+    ("tareas", "grados", "TEXT"),
+]
+
+
 def inicializar():
     con = conectar()
     con.executescript(ESQUEMA)
+    for tabla, col, tipo in COLUMNAS_NUEVAS:
+        if col not in {r[1] for r in con.execute(f"PRAGMA table_info({tabla})")}:
+            con.execute(f"ALTER TABLE {tabla} ADD COLUMN {col} {tipo}")
     for k, v in CONFIG_INICIAL.items():
         con.execute("INSERT OR IGNORE INTO config(clave, valor) VALUES(?, ?)", (k, json.dumps(v)))
     con.commit()

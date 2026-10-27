@@ -26,8 +26,28 @@ const ZONA_INFO = {
 const JUEGOS_ELEGIR = ["completar", "opuestos", "ortografia", "clases"];
 
 /* ---------------- Voz, sonido y festejos ---------------- */
+// Botón 🔊/🔇 fijo en la pantalla: apaga la voz de lectura en cualquier momento.
+// Se recuerda en este navegador (si el navegador no deja guardar, igual funciona mientras está abierto).
+let MUDA = false;
+try { MUDA = localStorage.getItem("isla_voz_apagada") === "1"; } catch (e) { /* sin almacenamiento */ }
+function pintarBotonVoz() {
+  const b = $("#btnVoz"); if (!b) return;
+  b.innerHTML = MUDA ? `<span class="e">🔇</span><span class="t">Voz apagada</span>` : `<span class="e">🔊</span><span class="t">Voz prendida</span>`;
+  b.setAttribute("aria-pressed", MUDA ? "true" : "false");
+  b.setAttribute("aria-label", MUDA ? "Prender la voz" : "Apagar la voz");
+  b.classList.toggle("apagada", MUDA);
+  document.body.classList.toggle("muda", MUDA);
+}
+function cambiarVoz() {
+  MUDA = !MUDA;
+  try { localStorage.setItem("isla_voz_apagada", MUDA ? "1" : "0"); } catch (e) { /* sin almacenamiento */ }
+  if (MUDA) callar();
+  pintarBotonVoz();
+  toast(MUDA ? "🔇 Voz apagada" : "🔊 Voz prendida");
+}
 function callar() { Voz.callar(); $$(".frase.leyendo").forEach(f => f.classList.remove("leyendo")); }
 function decir(t, fin) {
+  if (MUDA) { $$(".frase.leyendo").forEach(f => f.classList.remove("leyendo")); return; }
   Voz.preferida = P ? P.cfg.voz : "";
   Voz.hablar(t, {lenta: !!(P && P.cfg.voz_lenta), alegre: !P || P.cfg.voz_alegre !== false, fin});
 }
@@ -150,8 +170,8 @@ function vInicio() {
       <div class="pie"><h3 class="kid">${esc(t.n)}</h3><p class="kid">${ZONA_INFO[k].txt} · ${hechas}/${l.length} ✅</p></div></button>`;
   }).join("");
   const saludo = pend.length
-    ? `<div class="aviso-tarea"><span style="font-size:2rem">📝</span><span class="kid" style="flex:1"><b style="display:inline;font-size:1.2rem">La seño te dejó ${pend.length === 1 ? "una tarea" : pend.length + " tareas"}.</b></span>
-       <button class="btn sol chico" data-act="ir" data-p="tareas">Ver tareas ➡️</button></div>`
+    ? `<div class="aviso-tarea"><span style="font-size:2rem">🎯</span><span class="kid" style="flex:1"><b style="display:inline;font-size:1.2rem">La seño te preparó ${pend.length === 1 ? "una misión" : pend.length + " misiones"}.</b></span>
+       <button class="btn sol chico" data-act="ir" data-p="tareas">Ver misiones ➡️</button></div>`
     : `<span class="kid">Elegí una zona de la isla para jugar.</span>`;
   return barraTop() + `
   <section class="hero">
@@ -161,7 +181,7 @@ function vInicio() {
   <div class="zonas">
     ${zonas}
     <button class="zona" data-act="ir" data-p="tareas">${pend.length ? `<span class="badge">${pend.length}</span>` : ""}
-      <div class="cab g-tareas"><span class="flota">📝</span></div><div class="pie"><h3 class="kid">Mis tareas</h3><p class="kid">Lo que dejó la seño</p></div></button>
+      <div class="cab g-tareas"><span class="flota">🎯</span></div><div class="pie"><h3 class="kid">Mis misiones</h3><p class="kid">Lo que preparó la seño</p></div></button>
     <button class="zona" data-act="ir" data-p="perfil">
       <div class="cab g-perfil">${Avatar.svg(P.avatar, 92)}</div><div class="pie"><h3 class="kid">Mi perfil</h3><p class="kid">Avatar, medallas y álbum</p></div></button>
   </div>`;
@@ -174,7 +194,7 @@ function vZona() {
   <div class="encab"><h2 class="kid">${t.i} ${esc(t.n)}</h2><button class="btn blanco" data-act="ir" data-p="inicio">⬅️ Volver a la isla</button></div>
   <div class="islas">${l.map((a, i) => `
     <button class="islita ${a.bloqueada ? "lock" : ""}" data-act="${a.bloqueada ? "bloqueada" : "abrir"}" data-id="${a.id}">
-      <span class="num">${i + 1}</span>${a.en_tarea ? `<span class="tag">📝 Tarea</span>` : ""}
+      <span class="num">${i + 1}</span>${a.en_tarea ? `<span class="tag">🎯 Misión</span>` : ""}
       <div class="em">${a.e}</div><div class="t kid">${esc(a.titulo)}</div>
       <div class="st" aria-label="${a.estrellas} estrellas">${"⭐".repeat(a.estrellas)}${"☆".repeat(3 - a.estrellas)}</div></button>`).join("")}
   </div>`;
@@ -224,7 +244,18 @@ function prepararJuego(act, tarea) {
   } else {
     items = act.items.map(it => ({...it, tema: "escritura", pool: mezclar(it.p.split("").map((l, i) => ({l, i})))}));
   }
-  return {act, tipo: act.tipo, tarea, items, i: 0, err: 0, res: [], bloq: false, pos: 0, puestos: [], t0: Date.now(), leida: false};
+  // res: resultado de la primera vuelta (lo que se guarda) · marcas: color de cada puntito · corregidas: repasos que salieron bien
+  return {act, tipo: act.tipo, tarea, items, i: 0, err: 0, res: [], marcas: [], corregidas: 0, bloq: false, pos: 0, puestos: [], t0: Date.now(), leida: false};
+}
+
+/* Repaso al estilo Duolingo: lo que salió mal vuelve al final de la actividad (con las opciones mezcladas)
+   hasta que sale bien. Cada pregunta vuelve como máximo 2 veces, para que no se haga eterno. */
+const MAX_REPASOS = 2;
+function repetir(q) {
+  const copia = {...q, repaso: (q.repaso || 0) + 1};
+  if (q.ops) copia.ops = mezclar(q.ops.map(o => ({...o})));
+  if (q.pool) copia.pool = mezclar(q.pool.map(o => ({...o})));
+  return copia;
 }
 
 function frasesDe(t) { return (t.match(/[^.!?…]+[.!?…]+[»"]?|[^.!?…]+$/g) || [t]).map(s => s.trim()).filter(Boolean); }
@@ -268,7 +299,11 @@ function etiquetasOrden(n) {
 function vJugar() {
   const q = J.items[J.i];
   const T = CAT.temas[q.tema] || CAT.temas.detalles;
-  const puntos = J.items.map((_, k) => k < J.i ? `<i class="${J.res[k].primer ? "ok" : "med"}"></i>` : k === J.i ? `<i class="ya"></i>` : `<i></i>`).join("");
+  const puntos = J.items.map((it, k) => `<i class="${k < J.i ? J.marcas[k] : k === J.i ? "ya" : ""} ${it.repaso ? "rep" : ""}"></i>`).join("");
+  const primerRepaso = q.repaso && !(J.items[J.i - 1] || {}).repaso;
+  const avisoRepaso = !q.repaso ? "" : primerRepaso
+    ? `<div class="repaso-aviso kid pop">🔁 ¡A repasar! Estas te costaron un poquito. ¡Ahora te van a salir!</div>`
+    : `<div class="repaso-aviso chico kid">🔁 Repaso</div>`;
   let cuerpo = "";
   const parlante = `<button class="btn blanco chico" data-act="leerConsigna" aria-label="Escuchar">🔊</button>`;
   if (J.tipo === "cuento") {
@@ -323,6 +358,7 @@ function vJugar() {
   return `
   <div class="juego"><div class="card">
     <div class="jbar"><div class="puntos" aria-label="Paso ${J.i + 1} de ${J.items.length}">${puntos}</div><span class="tema-chip kid">${T.i} ${esc(T.kid)}</span></div>
+    ${avisoRepaso}
     ${cuerpo}
     <div class="msg kid" id="msg" aria-live="polite"></div>
     ${J.tipo === "cuento" ? `<div class="row" style="justify-content:center;margin-top:8px"><button class="btn blanco chico" data-act="mirar">📖 Mirar el cuento</button></div>
@@ -350,8 +386,13 @@ function marcar(ok) {
   if (ok) {
     if (J.bloq) return; J.bloq = true;
     const primer = J.err === 0;
-    J.res.push({idx: q.idx, intentos: J.err + 1, primer});
-    sonar("ok"); $("#msg").textContent = primer ? azar(ELOGIOS) : "¡Bien! Lo lograste 👍";
+    if (!q.repaso) J.res.push({idx: q.idx, intentos: J.err + 1, primer});   // se guarda solo la primera vuelta
+    J.marcas.push(primer ? (q.repaso ? "rep-ok" : "ok") : "med");
+    if (!primer && (q.repaso || 0) < MAX_REPASOS) J.items.push(repetir(q));   // vuelve al final
+    if (primer && q.repaso) J.corregidas++;
+    sonar("ok");
+    $("#msg").textContent = primer ? (q.repaso ? "¡Ahora sí! 💪 ¡Aprendiste de tu error!" : azar(ELOGIOS))
+                          : (q.repaso || 0) < MAX_REPASOS ? "¡Bien! Esta la vamos a repasar al final 🔁" : "¡Bien! Lo lograste 👍";
     if (primer) confeti(12);
     if (J.tipo === "oraciones") decir(q.t); if (J.tipo === "palabras") decir(q.p);
     if (J.tipo === "silabas") decir(q.palabra); if (q.resp) decir(q.resp);
@@ -361,9 +402,37 @@ function marcar(ok) {
     }, 1500);
   } else {
     J.err++; sonar("no");
-    $("#msg").textContent = J.err >= 2 ? T.pista : azar(ANIMOS);
-    if (J.err >= 2 && $("#mirar")) $("#mirar").classList.remove("hidden");
+    // Con 2 opciones (1.º grado) o en verdadero/falso, la ayuda llega después del primer error; si no, del segundo
+    const limite = q.ops ? Math.min(2, q.ops.length - 1) : q.t === "vf" ? 1 : 2;
+    $("#msg").textContent = J.err >= limite ? T.pista : azar(ANIMOS);
+    if (J.err >= limite && $("#mirar")) $("#mirar").classList.remove("hidden");
+    if (J.err >= limite) ayudar(q, T);
   }
+}
+// Cuando se equivoca (ver «limite» arriba) se marca la respuesta correcta (brilla) y la voz la dice.
+// El chico la toca igual, así ve y escucha cuál era. En las estadísticas cuenta como «no a la primera».
+function ayudar(q, T) {
+  let boton = null, dicha = "";
+  if (q.ops) {
+    const k = q.ops.findIndex(o => o.ok);
+    boton = $(`.opts [data-k="${k}"]`); dicha = q.ops[k].t;
+  } else if (q.t === "vf") {
+    boton = $(`.opts [data-v="${q.v ? 1 : 0}"]`); dicha = q.v ? "Sí, es verdad" : "No, no es así";
+  } else if (J.tipo === "cuento") {           // ordenar la secuencia
+    const k = q.pool.findIndex(o => o.i === J.pos);
+    boton = $(`.pool [data-k="${k}"]`); dicha = q.items[J.pos];
+  } else {                                     // oraciones, palabras y sílabas: la ficha que sigue
+    const busca = J.tipo === "oraciones" ? (o => !o.usada && o.w.toLowerCase() === q.pal[J.pos].toLowerCase())
+                : J.tipo === "silabas" ? (o => o.s === q.sil[J.pos]) : (o => o.l === q.p[J.pos]);
+    const fichas = $$(".fichas button");
+    boton = fichas.find((b, k) => !b.disabled && busca(q.pool[k]));
+    dicha = J.tipo === "oraciones" ? q.pal[J.pos] : J.tipo === "silabas" ? q.sil[J.pos] : q.p[J.pos];
+  }
+  $$(".ayuda").forEach(b => b.classList.remove("ayuda"));
+  if (boton) boton.classList.add("ayuda");
+  const limpia = String(dicha).replace(/^[^\p{L}¡¿]+/u, "");
+  $("#msg").innerHTML = `${esc(T.pista)}<br><b>Mirá: la respuesta es «${esc(limpia)}». ¡Tocala! ✨</b>`;
+  callar(); decir((q.ops || q.t === "vf" ? "La respuesta es: " : "Sigue: ") + limpia);
 }
 function sacudir(el) { el.classList.remove("shake"); void el.offsetWidth; el.classList.add("shake"); }
 
@@ -387,7 +456,8 @@ function vPremio() {
     <h2 class="cuento-tit kid">${frase}</h2>
     <div class="estrellas">${[1, 2, 3].map(n => `<span style="animation-delay:${n * .25}s">${n <= R.estrellas ? "⭐" : "☆"}</span>`).join("")}</div>
     <p class="kid" style="font-size:1.25rem;font-weight:700">Lo hiciste bien a la primera ${R.aciertos} de ${R.total} veces.</p>
-    ${R.tarea ? `<div class="subio kid">📝 ¡Terminaste la tarea «${esc(R.tarea.titulo)}»! +${R.tarea.recompensa} 🪙 de premio</div>` : ""}
+    ${J && J.corregidas ? `<p class="kid repaso-fin">🔁 ¡Repasaste y corregiste ${J.corregidas === 1 ? "1 pregunta" : J.corregidas + " preguntas"}! Equivocarse también sirve para aprender.</p>` : ""}
+    ${R.tarea ? `<div class="subio kid">🎯 ¡Cumpliste la misión «${esc(R.tarea.titulo)}»! +${R.tarea.recompensa} 🪙 de premio</div>` : ""}
     ${R.subio ? `<div class="subio kid">🎊 ¡Subiste al nivel ${R.nivel.num}: ${R.nivel.i} ${esc(R.nivel.n)}!</div>` : ""}
     <div class="reco-grid">
       <div class="reco"><span class="e">🪙</span>+${R.monedas} monedas</div>
@@ -397,7 +467,7 @@ function vPremio() {
     </div>
     <div class="row" style="justify-content:center">
       <button class="btn blanco" data-act="otraVez">🔁 Jugar otra vez</button>
-      ${J.tarea ? `<button class="btn sol" data-act="ir" data-p="tareas">📝 Mis tareas</button>` : `<button class="btn verde" data-act="zona" data-t="${J.tipo}">🏝️ Seguir jugando</button>`}
+      ${J.tarea ? `<button class="btn sol" data-act="ir" data-p="tareas">🎯 Mis misiones</button>` : `<button class="btn verde" data-act="zona" data-t="${J.tipo}">🏝️ Seguir jugando</button>`}
       <button class="btn violeta" data-act="ir" data-p="perfil">🎨 Mi perfil</button>
       <button class="btn blanco" data-act="ir" data-p="inicio">🏝️ Inicio</button>
     </div>
@@ -414,7 +484,7 @@ function vTareas() {
     const urge = t.fecha_limite && t.fecha_limite <= hoy && !t.entregada;
     return `
     <article class="card tarea ${t.entregada ? "hecha-t" : ""}">
-      <div class="cab-t"><h3 class="kid">${t.entregada ? "✅" : "📝"} ${esc(t.titulo)}</h3>
+      <div class="cab-t"><h3 class="kid">${t.entregada ? "✅" : "🎯"} ${esc(t.titulo)}</h3>
         ${t.fecha_limite ? `<span class="fecha ${urge ? "urge" : ""}">📅 Para el ${fechaCorta(t.fecha_limite)}</span>` : ""}
         <span class="fecha">🪙 +${t.recompensa}</span></div>
       ${t.consigna ? `<div class="seno"><span class="cara">👩‍🏫</span><span class="kid" style="flex:1"><b>La seño dice:</b> ${esc(t.consigna)}</span>
@@ -428,9 +498,9 @@ function vTareas() {
     </article>`;
   };
   return barraTop() + `
-  <div class="encab"><h2 class="kid">📝 Mis tareas</h2><button class="btn blanco" data-act="ir" data-p="inicio">⬅️ Volver a la isla</button></div>
-  ${pend.length ? pend.map(tarjeta).join("") : `<div class="card center"><div style="font-size:3.5rem">🎉</div><h3 class="kid" style="font-size:1.7rem">¡No tenés tareas pendientes!</h3><p class="kid" style="font-size:1.2rem">Podés seguir jugando en la isla.</p></div>`}
-  ${hechas.length ? `<h3 class="kid" style="font-size:1.5rem;margin:26px 0 12px">✅ Tareas terminadas</h3>${hechas.map(tarjeta).join("")}` : ""}`;
+  <div class="encab"><h2 class="kid">🎯 Mis misiones</h2><button class="btn blanco" data-act="ir" data-p="inicio">⬅️ Volver a la isla</button></div>
+  ${pend.length ? pend.map(tarjeta).join("") : `<div class="card center"><div style="font-size:3.5rem">🎉</div><h3 class="kid" style="font-size:1.7rem">¡No tenés misiones pendientes!</h3><p class="kid" style="font-size:1.2rem">Podés seguir jugando en la isla.</p></div>`}
+  ${hechas.length ? `<h3 class="kid" style="font-size:1.5rem;margin:26px 0 12px">✅ Misiones cumplidas</h3>${hechas.map(tarjeta).join("")}` : ""}`;
 }
 
 /* =========================================================
@@ -522,6 +592,7 @@ const A = {
   leerFrase: el => { callar(); el.classList.add("leyendo"); decir(el.textContent, () => el.classList.remove("leyendo")); },
   leerTodo: () => leerTodo(),
   callar: () => callar(),
+  cambiarVoz: () => cambiarVoz(),
   leerTexto: el => { callar(); decir(el.dataset.t); },
   empezarPreguntas: () => { J.t0 = J.t0 || Date.now(); ir("jugar"); },
   leerConsigna: () => leerConsigna(),
@@ -617,6 +688,7 @@ document.addEventListener("keydown", e => {
 });
 
 /* ---------------- Arranque ---------------- */
+pintarBotonVoz();
 (async () => {
   try {
     CAT = await cargarCatalogo();

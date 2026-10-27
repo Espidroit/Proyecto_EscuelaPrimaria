@@ -258,3 +258,29 @@ button:focus-visible,input:focus-visible{outline:4px solid var(--berry);outline-
   .slot b{width:auto}
   .opts.dos{grid-template-columns:1fr}
 }
+
+/* ---------- Botón para apagar / prender la voz (siempre visible) ---------- */
+.btn-voz{position:fixed;right:16px;bottom:16px;z-index:55;display:flex;align-items:center;gap:8px;
+  font:800 1rem "Baloo 2",system-ui,sans-serif;color:var(--ink);background:#fff;border:3px solid var(--ink);
+  border-radius:999px;padding:8px 16px 8px 12px;box-shadow:0 4px 0 var(--ink);cursor:pointer}
+.btn-voz .e{font-size:1.6rem;line-height:1}
+.btn-voz:active{transform:translateY(3px);box-shadow:0 1px 0 var(--ink)}
+.btn-voz.apagada{background:var(--rose)}
+.btn-voz:focus-visible{outline:4px solid var(--sun2);outline-offset:3px}
+@media (max-width:760px){.btn-voz .t{display:none}.btn-voz{padding:10px}}
+#app{padding-bottom:84px}  /* lugar para que el botón de la voz no tape nada */
+/* Con la voz apagada se esconden los parlantes de «Escuchar» */
+body.muda [data-act="leerConsigna"], body.muda [data-act="leerTodo"], body.muda [data-act="leerTexto"]{display:none}
+/* Respuesta correcta marcada después del segundo error */
+.ayuda{outline:5px solid var(--sun2);outline-offset:3px;background:#fff6cc !important}
+@media (prefers-reduced-motion:no-preference){
+  .ayuda{animation:brilla 1s ease-in-out infinite}
+  @keyframes brilla{50%{outline-color:var(--sun);transform:scale(1.05)}}
+}
+
+/* ---------- Repaso al estilo Duolingo ---------- */
+.puntos i.rep{border-style:dashed}
+.puntos i.rep-ok{background:var(--leaf);box-shadow:0 0 0 3px var(--sun)}
+.repaso-aviso{margin:12px 0 4px;padding:10px 16px;border-radius:14px;background:var(--sand);border:3px solid var(--sun2);font-weight:800;font-size:1.2rem;text-align:center}
+.repaso-aviso.chico{display:inline-block;padding:4px 12px;font-size:1rem;border-width:2px}
+.repaso-fin{font-size:1.15rem;font-weight:700;background:var(--mint);border-radius:14px;padding:10px 16px;display:inline-block}
