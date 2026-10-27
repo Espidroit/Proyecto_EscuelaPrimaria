@@ -4,6 +4,8 @@ Juego educativo de **Lengua y Literatura para 1.º, 2.º y 3.º grado**, hecho c
 Los chicos leen cuentos, arman oraciones, buscan rimas y escriben palabras. Ganan estrellas, monedas, medallas y figuritas, y personalizan su avatar.
 La docente tiene un **panel aparte, protegido con usuario y contraseña**, donde prepara misiones para la clase y sigue la evolución de cada alumno.
 
+**Versión de demostración en línea:** https://frankjc.pythonanywhere.com (solo para mostrar el proyecto, con datos de prueba; el uso real es en las computadoras del aula).
+
 ---
 
 ## Cómo se abre
