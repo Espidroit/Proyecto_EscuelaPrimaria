@@ -786,6 +786,34 @@ def nuevo_codigo(con, docente_id):
     return c
 
 
+def crear_docente(con, d):
+    """Valida los datos y crea la cuenta. Devuelve el id nuevo, o el mensaje de error.
+    Solo hacen falta usuario, contraseña y email; el nombre y los grados son opcionales."""
+    usuario, pw = str(d.get("usuario") or "").strip().lower(), str(d.get("password") or "")
+    email = str(d.get("email") or "").strip().lower()
+    nombre = re.sub(r"\s+", " ", str(d.get("nombre") or "")).strip() or usuario
+    if not re.fullmatch(r"[a-z0-9._-]{3,30}", usuario):
+        return "El usuario debe tener entre 3 y 30 letras o números, sin espacios."
+    if problema_password(pw):
+        return problema_password(pw)
+    if len(email) > 120 or not re.fullmatch(r"[^@\s<>]+@[^@\s<>]+\.[a-z]{2,}", email):
+        return "Escribí un email válido, por ejemplo laura@gmail.com."
+    if len(nombre) > 60 or not re.search(rf"[{LETRAS}]", nombre) or re.search(r"[<>\x00-\x1f]", nombre):
+        return "Tu nombre puede tener hasta 60 letras y no puede llevar los signos < o >."
+    try:
+        grados = leer_grados(d["grados"]) if "grados" in d else "1,2,3"
+    except ValueError as e:
+        return str(e)
+    if con.execute("SELECT 1 FROM docentes WHERE usuario=?", (usuario,)).fetchone():
+        return "Ese usuario ya existe. Elegí otro."
+    if con.execute("SELECT 1 FROM docentes WHERE email=?", (email,)).fetchone():
+        return "Ya hay una cuenta docente con ese email."
+    cur = con.execute("INSERT INTO docentes(usuario, nombre, pass_hash, creado, grados, email) VALUES(?,?,?,?,?,?)",
+                      (usuario, nombre, seg.hashear(pw), db.ahora(), grados, email))
+    con.commit()
+    return cur.lastrowid
+
+
 @app.get("/api/docente/estado")
 def api_docente_estado():
     con = con_db()
@@ -813,35 +841,16 @@ def api_docente_configurar():
     if not es_local():
         con.close()
         return error("Las cuentas docentes se crean desde la computadora donde está instalado el juego.", 403)
-    nombre = re.sub(r"\s+", " ", str(d.get("nombre") or "")).strip()
-    usuario, pw = str(d.get("usuario") or "").strip().lower(), str(d.get("password") or "")
-    if not nombre:
+    did = crear_docente(con, d)
+    if isinstance(did, str):
         con.close()
-        return error("Escribí tu nombre.")
-    if len(nombre) > 60 or not re.search(rf"[{LETRAS}]", nombre) or re.search(r"[<>\x00-\x1f]", nombre):
-        con.close()
-        return error("Tu nombre puede tener hasta 60 letras y no puede llevar los signos < o >.")
-    if not re.fullmatch(r"[a-z0-9._-]{3,30}", usuario):
-        con.close()
-        return error("El usuario debe tener entre 3 y 30 letras o números, sin espacios.")
-    if problema_password(pw):
-        con.close()
-        return error(problema_password(pw))
-    try:
-        grados = leer_grados(d.get("grados"))
-    except ValueError as e:
-        con.close()
-        return error(str(e))
-    if con.execute("SELECT 1 FROM docentes WHERE usuario=?", (usuario,)).fetchone():
-        con.close()
-        return error("Ese usuario ya existe. Elegí otro.")
-    cur = con.execute("INSERT INTO docentes(usuario, nombre, pass_hash, creado, grados) VALUES(?,?,?,?,?)",
-                      (usuario, nombre, seg.hashear(pw), db.ahora(), grados))
+        return error(did)
+    usuario = con.execute("SELECT usuario FROM docentes WHERE id=?", (did,)).fetchone()[0]
     db.registrar(con, "Cuenta docente creada", usuario, ip())
-    codigo = nuevo_codigo(con, cur.lastrowid)
+    codigo = nuevo_codigo(con, did)
     con.close()
     session.clear()
-    session.update({"rol": "docente", "uid": cur.lastrowid, "t": time.time()})
+    session.update({"rol": "docente", "uid": did, "t": time.time()})
     return jsonify({"ok": True, "codigo": codigo})
 
 
@@ -1790,12 +1799,28 @@ def api_docente_docentes():
     con = con_db()
     ult = {r[0]: r[1] for r in con.execute(
         "SELECT usuario, MAX(fecha) FROM auditoria WHERE evento IN ('Ingreso correcto','Cuenta docente creada') GROUP BY usuario")}
-    out = [{"id": r["id"], "nombre": r["nombre"], "usuario": r["usuario"], "creado": r["creado"],
+    out = [{"id": r["id"], "nombre": r["nombre"], "usuario": r["usuario"], "email": r["email"], "creado": r["creado"],
             "ultimo": ult.get(r["usuario"]), "yo": r["id"] == session["uid"],
             "grados": [int(x) for x in (r["grados"] or "1,2,3").split(",")]}
            for r in con.execute("SELECT * FROM docentes ORDER BY creado")]
     con.close()
     return jsonify(out)
+
+
+@app.post("/api/docente/docentes")
+@requiere("docente")
+def api_docente_docente_crear():
+    """Una docente con sesión abierta le crea la cuenta a otra (usuario, contraseña y email)."""
+    con = con_db()
+    did = crear_docente(con, cuerpo())
+    if isinstance(did, str):
+        con.close()
+        return error(did)
+    r = con.execute("SELECT usuario FROM docentes WHERE id=?", (did,)).fetchone()
+    yo = con.execute("SELECT usuario FROM docentes WHERE id=?", (session["uid"],)).fetchone()[0]
+    db.registrar(con, f"Cuenta docente creada: {r[0]}", yo, ip())
+    con.close()
+    return jsonify({"ok": True, "id": did, "usuario": r[0]})
 
 
 @app.post("/api/docente/recuperar")

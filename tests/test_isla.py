@@ -40,7 +40,7 @@ class Base(unittest.TestCase):
         A.LIMITE_DOCENTE.bloqueados.clear()
         A.LIMITE_ALUMNO.bloqueados.clear()
         s, _ = cls.pedir("post", "/api/docente/configurar", {"nombre": "Seño Prueba", "usuario": "seno", "password": CLAVE_DOCENTE,
-                                                                  "grados": [1, 2, 3]})
+                                                                  "email": "seno@escuela.com", "grados": [1, 2, 3]})
         if s != 200:  # ya existía: entrar
             cls.docente()
 
@@ -113,11 +113,11 @@ class TestCuentaDocente(Base):
         self.rechaza("post", url, {"nombre": "Otra", "usuario": "otra", "password": "abcdefghij"}, 400, "letras y números")
         self.rechaza("post", url, {"nombre": "Otra", "usuario": "otra", "password": "a1" * 100}, 400, "128")
         self.rechaza("post", url, {"nombre": "Otra", "usuario": "la otra", "password": "clave1234"}, 400, "usuario")
-        self.rechaza("post", url, {"nombre": " ", "usuario": "otra", "password": "clave1234"}, 400, "nombre")
-        self.rechaza("post", url, {"nombre": "<b>Otra</b>", "usuario": "otra", "password": "clave1234"}, 400, "signos")
-        self.rechaza("post", url, {"nombre": "Otra", "usuario": "otra", "password": "clave1234"}, 400, "grado")
-        self.rechaza("post", url, {"nombre": "Otra", "usuario": "otra", "password": "clave1234", "grados": [4]}, 400, "grado")
-        self.rechaza("post", url, {"nombre": "Otra", "usuario": "seno", "password": "clave1234", "grados": [1]}, 400, "ya existe")
+        self.rechaza("post", url, {"usuario": "otra", "password": "clave1234"}, 400, "email")
+        self.rechaza("post", url, {"usuario": "otra", "password": "clave1234", "email": "otra@"}, 400, "email")
+        self.rechaza("post", url, {"nombre": "<b>Otra</b>", "usuario": "otra", "password": "clave1234", "email": "otra@x.com"}, 400, "signos")
+        self.rechaza("post", url, {"usuario": "otra", "password": "clave1234", "email": "otra@x.com", "grados": [4]}, 400, "grado")
+        self.rechaza("post", url, {"usuario": "seno", "password": "clave1234", "email": "otra@x.com"}, 400, "ya existe")
         self.docente()
 
     def test_cambio_de_contrasena(self):
@@ -127,6 +127,21 @@ class TestCuentaDocente(Base):
         self.rechaza("post", url, {"actual": CLAVE_DOCENTE, "nueva": "12345678"}, 400, "letras y números")
         self.acepta("post", url, {"actual": CLAVE_DOCENTE, "nueva": "otra5678"})
         self.acepta("post", url, {"actual": "otra5678", "nueva": CLAVE_DOCENTE})
+
+    def test_crear_docente_desde_el_panel(self):
+        url = "/api/docente/docentes"
+        self.rechaza("post", url, {"usuario": "nuevita", "password": "clave1234", "email": "nada"}, 400, "email")
+        self.rechaza("post", url, {"usuario": "nuevita", "password": "corta", "email": "nuevita@x.com"}, 400, "contraseña")
+        self.rechaza("post", url, {"usuario": "nuevita", "password": "clave1234", "email": "seno@escuela.com"}, 400, "email")
+        j = self.acepta("post", url, {"usuario": "Nuevita", "password": "clave1234", "email": "Nuevita@X.com"})
+        self.assertEqual(j["usuario"], "nuevita")
+        d = next(d for d in self.pedir("get", url)[1] if d["usuario"] == "nuevita")
+        self.assertEqual((d["nombre"], d["email"], d["grados"]), ("nuevita", "nuevita@x.com", [1, 2, 3]))
+        A.LIMITE_DOCENTE.bloqueados.clear()
+        r = A.app.test_client().post("/api/docente/ingresar", json={"usuario": "nuevita", "password": "clave1234"},
+                                     headers={"X-Isla": "1"}, environ_base={"REMOTE_ADDR": "127.0.0.1"})
+        self.assertEqual(r.status_code, 200)
+        self.pedir("delete", f"/api/docente/docentes/{d['id']}")
 
     def test_borrar_docente(self):
         self.rechaza("delete", "/api/docente/docentes/9999", None, 404, "no existe")
@@ -585,7 +600,8 @@ class TestRecuperarContrasena(Base):
     def otra_cuenta(self, usuario):
         A.LIMITE_DOCENTE.bloqueados.clear()
         c = A.app.test_client()
-        r = c.post("/api/docente/configurar", json={"nombre": "Otra Seño", "usuario": usuario, "password": "clave1234", "grados": [1]},
+        r = c.post("/api/docente/configurar", json={"nombre": "Otra Seño", "usuario": usuario, "password": "clave1234",
+                                                    "email": usuario + "@escuela.com", "grados": [1]},
                    headers={"X-Isla": "1"}, environ_base={"REMOTE_ADDR": "127.0.0.1"})
         self.assertEqual(r.status_code, 200, r.get_json())
         return c, r.get_json()

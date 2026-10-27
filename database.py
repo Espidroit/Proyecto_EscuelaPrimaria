@@ -20,7 +20,8 @@ CREATE TABLE IF NOT EXISTS docentes(
     creado TEXT NOT NULL,
     grados TEXT NOT NULL DEFAULT '1,2,3',  -- grados a cargo de la docente (ve solo esos alumnos)
     recuperacion TEXT,                     -- código de recuperación (cifrado, como la contraseña)
-    debe_cambiar INTEGER NOT NULL DEFAULT 0 -- 1 = entró con una contraseña temporal y tiene que elegir otra
+    debe_cambiar INTEGER NOT NULL DEFAULT 0, -- 1 = entró con una contraseña temporal y tiene que elegir otra
+    email TEXT
 );
 CREATE TABLE IF NOT EXISTS alumnos(
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -157,6 +158,7 @@ COLUMNAS_NUEVAS = [
     ("tareas", "grados", "TEXT"),
     ("docentes", "recuperacion", "TEXT"),
     ("docentes", "debe_cambiar", "INTEGER NOT NULL DEFAULT 0"),
+    ("docentes", "email", "TEXT"),
 ]
 
 

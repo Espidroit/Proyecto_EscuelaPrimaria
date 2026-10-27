@@ -261,16 +261,18 @@ function mostrarCodigo(codigo, titulo = "Tu código de recuperación") {
     });
 }
 
+// Los 3 datos para crear una cuenta docente (registro y «Nuevo docente» en Ajustes)
+const camposDocente = () => `
+    <div class="campo"><label>Usuario</label><input type="text" name="usuario" placeholder="Ej.: laura" minlength="3" maxlength="30" pattern="[A-Za-z0-9._-]+" autocomplete="off" required><small>Sin espacios. Solo letras, números, punto o guion.</small></div>
+    ${campoPass("password", "Contraseña", "new-password", "Mínimo 8 caracteres, con letras y números.")}
+    <div class="campo"><label>Email</label><input type="email" name="email" placeholder="Ej.: laura@gmail.com" maxlength="120" autocomplete="off" required></div>`;
+
 function vConfigurar(local, nueva = false) {
   $("#raiz").innerHTML = `<div class="acceso"><form class="caja" data-form="configurar" autocomplete="off">
     <div class="marca"><div class="logo">🏝️</div><div><b>Isla de los Cuentos</b><small class="muted">${nueva ? "Nueva cuenta docente" : "Primera configuración"}</small></div></div>
     <h1>${nueva ? "Crear mi cuenta docente" : "Crear la cuenta docente"}</h1>
-    ${local ? `<p>${nueva ? "Vas a ver solo a los alumnos de los grados que elijas, con tu propio usuario y contraseña." : "Esta cuenta protege el panel donde vas a ver el progreso de los chicos y prepararles misiones."}</p>
-    <div class="campo"><label>Tu nombre</label><input type="text" name="nombre" placeholder="Ej.: Seño Laura" required></div>
-    <div class="campo"><label>Usuario</label><input type="text" name="usuario" placeholder="Ej.: laura" minlength="3" maxlength="30" pattern="[A-Za-z0-9._-]+" required><small>Sin espacios. Solo letras, números, punto o guion.</small></div>
-    ${campoPass("password", "Contraseña", "new-password", "Mínimo 8 caracteres, con letras y números.")}
-    ${campoPass("password2", "Repetir contraseña", "new-password")}
-    <div class="campo"><label>¿De qué grados sos docente?</label>${checksGrados()}<small>Vas a ver solo a los alumnos de esos grados. Lo podés cambiar después en Ajustes.</small></div>
+    ${local ? `<p>${nueva ? "Solo necesitás un usuario, una contraseña y tu email." : "Esta cuenta protege el panel donde vas a ver el progreso de los chicos y prepararles misiones."}</p>
+    ${camposDocente()}
     <div class="error-form" id="err"></div><button class="btn" type="submit">Crear cuenta</button>
     ${nueva ? `<p style="margin:16px 0 0;text-align:center;font-size:13.5px"><a href="#/">Ya tengo cuenta, quiero ingresar</a></p>` : ""}`
     : `<p>La cuenta docente se crea desde la computadora donde está instalado el juego (abrí <b>http://localhost:5000/docente</b> en esa computadora).</p>`}
@@ -800,12 +802,12 @@ async function pAjustes() {
         <p style="margin-top:0" class="ink2">Todo se guarda en la carpeta <b>datos</b> del programa, en esta computadora. Descargá una copia de vez en cuando.</p>
         <div class="acciones"><a class="btn sec" href="/api/docente/exportar.csv">${ic("bajar")}Resultados (Excel / CSV)</a><a class="btn sec" href="/api/docente/copia">${ic("bajar")}Copia de seguridad</a></div></div></section>
     </div></div>
-  <section class="panel" style="margin-top:20px"><div class="panel-h"><h2>Docentes</h2><span class="muted" style="font-size:12.5px">Cada cuenta ve solo a los alumnos de sus grados</span></div>
+  <section class="panel" style="margin-top:20px"><div class="panel-h"><h2>Docentes</h2><button class="btn chico" data-act="nuevoDocente">${ic("mas")}Nuevo docente</button></div>
     <div class="panel-b" style="padding-top:4px;padding-bottom:4px">${sw("registro_abierto", "Permitir que otros docentes se creen su cuenta", "Aparece «Crear mi cuenta» en la pantalla de ingreso. Por seguridad, solo funciona desde la computadora donde está instalado el juego. Desactivalo cuando ya estén todos.")}</div>
-    <div class="panel-b sin"><table><thead><tr><th>Nombre</th><th>Usuario</th><th>Grados</th><th>Cuenta creada</th><th>Último ingreso</th><th></th></tr></thead><tbody>
-    ${docentes.map(d => `<tr><td><b>${esc(d.nombre)}</b> ${d.yo ? `<span class="estado e-info">Vos</span>` : ""}</td><td>@${esc(d.usuario)}</td><td>${nombreGrados(d.grados)}</td><td class="num">${fechaCorta(d.creado)}</td><td class="muted">${haceCuanto(d.ultimo)}</td>
+    <div class="panel-b sin"><div class="tabla-wrap"><table><thead><tr><th>Nombre</th><th>Usuario</th><th>Email</th><th>Grados</th><th>Cuenta creada</th><th>Último ingreso</th><th></th></tr></thead><tbody>
+    ${docentes.map(d => `<tr><td><b>${esc(d.nombre)}</b> ${d.yo ? `<span class="estado e-info">Vos</span>` : ""}</td><td>@${esc(d.usuario)}</td><td class="muted">${esc(d.email || "—")}</td><td>${nombreGrados(d.grados)}</td><td class="num">${fechaCorta(d.creado)}</td><td class="muted">${haceCuanto(d.ultimo)}</td>
       <td class="r" style="white-space:nowrap">${d.yo ? "" : `<button class="btn sec chico" data-act="restablecer" data-id="${d.id}" data-n="${esc(d.nombre)}">Restablecer contraseña</button> <button class="btn peligro chico" data-act="borrarDocente" data-id="${d.id}" data-n="${esc(d.nombre)}">Eliminar</button>`}</td></tr>`).join("")}
-    </tbody></table></div></section>
+    </tbody></table></div></div></section>
   <section class="panel" style="margin-top:20px"><div class="panel-h"><h2>Registro de accesos</h2><span class="muted" style="font-size:12.5px">Últimos 40 eventos de seguridad</span></div>
     <div class="panel-b sin"><div class="tabla-wrap"><table><thead><tr><th>Fecha</th><th>Evento</th><th>Usuario</th><th>Equipo (IP)</th></tr></thead><tbody>
     ${aud.map(e => `<tr><td class="num">${fechaHora(e.fecha)}</td><td>${/fallido/.test(e.evento) ? `<span class="estado e-bad">${esc(e.evento)}</span>` : esc(e.evento)}</td><td>${esc(e.usuario || "—")}</td><td class="muted num">${esc(e.ip || "")}</td></tr>`).join("")}
@@ -925,6 +927,13 @@ const A = {
     el.setAttribute("aria-label", ver ? "Ocultar contraseña" : "Mostrar contraseña");
     el.classList.toggle("on", ver); i.focus();
   },
+  nuevoDocente: async () => {
+    const r = await modal({titulo: "Nuevo docente", cuerpo: camposDocente() +
+      `<p class="muted" style="font-size:13px;margin-bottom:0">Pasale el usuario y la contraseña. Al principio ve los tres grados; lo puede cambiar en Ajustes → Mis grados.</p>`,
+      botones: [{txt: "Cancelar", cls: "sec", valor: null}, {txt: "Crear docente", valor: "form"}]});
+    if (!r) return;
+    if (await llamar(() => api("/api/docente/docentes", {method: "POST", body: r}), `Cuenta creada. Ya puede entrar como @${r.usuario.trim().toLowerCase()}.`)) pAjustes();
+  },
   borrarDocente: async el => {
     if (!await confirmar("Eliminar cuenta docente", `Se elimina la cuenta de ${esc(el.dataset.n)}. Los alumnos, misiones y resultados no se borran.`, "Eliminar", true)) return;
     if (await llamar(() => api(`/api/docente/docentes/${el.dataset.id}`, {method: "DELETE"}), "Cuenta eliminada.")) pAjustes();
@@ -945,9 +954,6 @@ const FORM = {
     catch (e) { $("#err").textContent = e.message; f.password.value = ""; f.password.focus(); }
   },
   configurar: async (f, d) => {
-    if (d.password !== d.password2) { $("#err").textContent = "Las contraseñas no coinciden."; return; }
-    d.grados = $$("[name=grados]:checked", f).map(i => +i.value);
-    if (!d.grados.length) { $("#err").textContent = "Elegí al menos un grado."; return; }
     const nueva = location.hash === "#/registro";
     try {
       const r = await api("/api/docente/configurar", {method: "POST", body: d});
