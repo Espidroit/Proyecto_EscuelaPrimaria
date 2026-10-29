@@ -476,6 +476,11 @@ class TestMejoras(Base):
         for m in C.MEDALLAS + C.NIVELES:
             self.assertNotRegex(m["n"], r"(?i)\b(lector|jugador|maestro|rey|mago|pensador|exploradora|guardián)\b")
 
+    def test_al_menos_10_actividades_por_tipo(self):
+        for tipo in C.TIPOS:
+            with self.subTest(tipo=tipo):
+                self.assertGreaterEqual(sum(1 for a in C.ACTIVIDADES_BASE if a["tipo"] == tipo), 10)
+
     def test_hay_cuentos_suficientes_para_cada_grado(self):
         por_nivel = {n: sum(1 for a in C.ACTIVIDADES_BASE if a["tipo"] == "cuento" and a["nivel"] == n) for n in (1, 2, 3)}
         self.assertGreaterEqual(por_nivel[1], 6)   # 1.º puede ganar «Ratón de biblioteca» (6 cuentos)
@@ -485,8 +490,9 @@ class TestMejoras(Base):
         self.entrar(self.p1)
         ids = {m["id"] for m in self.pedir("get", "/api/alumno/perfil")[1]["medallas"]}
         self.assertIn("m6", ids)
-        for imposible in ("tema-clases", "tema-ortografia", "tema-sinonimos"):
-            self.assertNotIn(imposible, ids)
+        self.assertNotIn("tema-clases", ids)          # clases de palabras empieza en 2.º grado
+        for posible in ("tema-ortografia", "tema-sinonimos", "tema-rimas"):
+            self.assertIn(posible, ids)
         self.entrar(self.p3)
         self.assertIn("tema-clases", {m["id"] for m in self.pedir("get", "/api/alumno/perfil")[1]["medallas"]})
         self.docente()
@@ -644,6 +650,97 @@ class TestRecuperarContrasena(Base):
         self.assertFalse(k.get("/api/docente/estado", **h).get_json()["sesion"]["debe_cambiar"])
         # ya no puede cambiarla sin la actual
         self.assertEqual(k.post("/api/docente/password", json={"nueva": "otra99999"}, **h).status_code, 403)
+
+
+# =================================================================
+class TestEscribo(Base):
+    """Producción escrita: el chico escribe, la docente devuelve con estrellas."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.uno = cls.alumno("Escritor Uno", 1)
+        cls.tres = cls.alumno("Escritora Tres", 3)
+
+    def entrar(self, al):
+        A.LIMITE_ALUMNO.bloqueados.clear()
+        self.acepta("post", "/api/alumno/ingresar", {"id": al["id"], "clave": al["clave"]})
+
+    def test_hay_consignas_para_cada_grado(self):
+        for n in (1, 2, 3):
+            self.assertGreaterEqual(sum(1 for c in C.CONSIGNAS if c["nivel"] == n), 3)
+
+    def test_escribir_y_recibir_devolucion(self):
+        A.ESPERA_ESCRITO = 0
+        self.entrar(self.uno)
+        ids = {c["id"] for c in self.pedir("get", "/api/alumno/escritos")[1]}
+        self.assertIn("esc-mascota", ids)
+        self.assertNotIn("esc-carta", ids)                       # es de nivel 3
+        self.rechaza("post", "/api/alumno/escritos", {"consigna_id": "esc-carta", "texto": "hola"}, 404, "no está disponible")
+        self.rechaza("post", "/api/alumno/escritos", {"consigna_id": "esc-mascota", "texto": "perro"}, 400, "al menos")
+        self.rechaza("post", "/api/alumno/escritos", {"consigna_id": "esc-mascota", "texto": "x" * 1600}, 400, "1500")
+        monedas_antes = self.pedir("get", "/api/alumno/perfil")[1]["monedas"]
+        r = self.acepta("post", "/api/alumno/escritos", {"consigna_id": "esc-mascota", "texto": "Mi perro es <b>marrón</b> y juega."})
+        self.assertEqual(r["monedas"], A.PREMIO_ESCRITO)
+        self.assertEqual(self.pedir("get", "/api/alumno/perfil")[1]["monedas"], monedas_antes + A.PREMIO_ESCRITO)
+        self.docente()
+        e = next(x for x in self.pedir("get", "/api/docente/escritos")[1]["escritos"] if x["alumno"]["id"] == self.uno["id"])
+        self.assertEqual(e["estado"], "pendiente")
+        self.assertIn("<b>", e["texto"])                          # se guarda tal cual; el panel lo escapa al mostrarlo
+        self.assertGreaterEqual(self.acepta("get", "/api/docente/resumen")["escritos_pendientes"], 1)
+        self.rechaza("post", f"/api/docente/escritos/{e['id']}/devolucion", {"estrellas": 5}, 400, "estrellas")
+        self.acepta("post", f"/api/docente/escritos/{e['id']}/devolucion", {"estrellas": 3, "devolucion": "¡Muy bien!"})
+        self.entrar(self.uno)
+        c = next(x for x in self.pedir("get", "/api/alumno/escritos")[1] if x["id"] == "esc-mascota")
+        self.assertEqual((c["ultimo"]["estado"], c["ultimo"]["estrellas"], c["ultimo"]["visto"]), ("revisado", 3, False))
+        self.acepta("post", f"/api/alumno/escritos/{c['ultimo']['id']}/visto")
+        self.assertEqual(self.pedir("get", "/api/alumno/perfil")[1]["monedas"],
+                         monedas_antes + A.PREMIO_ESCRITO + 3 * A.PREMIO_ESTRELLA)
+        self.docente()
+        ficha = self.acepta("get", f"/api/docente/alumnos/{self.uno['id']}")
+        self.assertEqual(len(ficha["escritos"]), 1)
+
+    def test_otra_docente_no_ve_escritos_de_otro_grado(self):
+        A.ESPERA_ESCRITO = 0
+        self.entrar(self.tres)
+        self.acepta("post", "/api/alumno/escritos", {"consigna_id": "esc-carta", "texto": " ".join(["palabra"] * 30)})
+        self.docente()
+        eid = next(x["id"] for x in self.pedir("get", "/api/docente/escritos")[1]["escritos"] if x["alumno"]["id"] == self.tres["id"])
+        self.acepta("put", "/api/docente/mis-grados", {"grados": [1]})
+        try:
+            self.assertFalse(any(x["alumno"]["id"] == self.tres["id"] for x in self.pedir("get", "/api/docente/escritos")[1]["escritos"]))
+            self.rechaza("post", f"/api/docente/escritos/{eid}/devolucion", {"estrellas": 2}, 404, "no existe")
+        finally:
+            self.acepta("put", "/api/docente/mis-grados", {"grados": [1, 2, 3]})
+
+    def test_consignas_propias(self):
+        self.rechaza("post", "/api/docente/consignas", {"titulo": "", "consigna": "Contá algo lindo", "nivel": 1}, 400, "título")
+        self.rechaza("post", "/api/docente/consignas", {"titulo": "Corta", "consigna": "Hola", "nivel": 1}, 400, "consigna")
+        cid = self.acepta("post", "/api/docente/consignas", {"titulo": "Mi fin de semana", "consigna": "Contá qué hiciste el sábado.", "nivel": 1, "min": 5, "e": "🏖️"})["id"]
+        self.assertTrue(any(c["id"] == cid for c in self.pedir("get", "/api/docente/escritos")[1]["consignas"]))
+        self.entrar(self.uno)
+        self.assertTrue(any(c["id"] == cid for c in self.pedir("get", "/api/alumno/escritos")[1]))
+        self.docente()
+        self.rechaza("delete", "/api/docente/consignas/esc-nombre", None, 404, "incluidas")
+        self.acepta("delete", f"/api/docente/consignas/{cid}")
+
+    def test_lectura_automatica_por_grado(self):
+        self.acepta("put", "/api/docente/config", {"auto_leer": True, "auto_leer_grados": [1]})
+        self.rechaza("put", "/api/docente/config", {"auto_leer_grados": [4]}, 400, "inválidos")
+        self.entrar(self.uno)
+        self.assertTrue(self.pedir("get", "/api/alumno/perfil")[1]["cfg"]["auto_leer"])
+        self.entrar(self.tres)
+        self.assertFalse(self.pedir("get", "/api/alumno/perfil")[1]["cfg"]["auto_leer"])
+        self.docente()
+        self.acepta("put", "/api/docente/config", {"auto_leer_grados": [1, 2]})
+
+    def test_temas_nuevos_tienen_actividades(self):
+        temas = {}
+        for a in C.ACTIVIDADES_BASE:
+            if a["tipo"] != "cuento":
+                temas[A.tema_actividad(a)] = temas.get(A.tema_actividad(a), 0) + 1
+        for t in ("acentuacion", "familias"):
+            self.assertGreaterEqual(temas.get(t, 0), 2, t)
 
 
 if __name__ == "__main__":

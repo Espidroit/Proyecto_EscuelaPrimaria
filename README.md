@@ -45,13 +45,15 @@ El juego se usa **solo en la escuela**, en las computadoras del aula (`iniciar_e
 
 ## Qué hay en el juego (chicos)
 
-- **📚 Cuentos** (15 incluidos: 6 de nivel 1, 5 de nivel 2 y 4 de nivel 3): lectura con voz, preguntas de personajes, lugar y tiempo, datos del texto, vocabulario, sentimientos, inferencias y orden de los hechos.
+- **104 actividades incluidas**: al menos 10 de cada tipo, repartidas en 3 niveles (1.º grado ve el nivel 1; 2.º, los niveles 1 y 2; 3.º, los tres). Elegidas según los NAP de Lengua del primer ciclo.
+- **📚 Cuentos y otros textos** (19: cuentos, adivinanzas, un instructivo, una nota de enciclopedia y coplas de la Quebrada): lectura con voz, preguntas de personajes, lugar y tiempo, datos del texto, vocabulario, sentimientos, inferencias y orden de los hechos.
 - **🧱 Ordeno oraciones**, **🎵 Busco la rima** y **🔤 Armo palabras**.
 - **👏 Juego de sílabas**: armar la palabra tocando sus sílabas en orden (conciencia silábica).
 - **📌 La palabra que falta**: completar oraciones con la palabra que tiene sentido y concuerda.
 - **🔄 Parecidas y opuestas**: sinónimos y antónimos.
 - **🖍️ ¿Con qué letra va?**: ortografía (b/v, c/s/z, ll/y, r/rr, g/j, h).
 - **🏷️ ¿Quién, cómo es o qué hace?**: clases de palabras (sustantivo, adjetivo, verbo), pensado para 3.º grado.
+- **✍️ Escribo** (producción escrita): 12 consignas por nivel (presentarse, una invitación, una receta, una carta, un cuento propio, renarrar un cuento…). El chico escribe con sus palabras; la seño lo lee en **Escritos**, le pone de 1 a 3 estrellas y le deja una devolución. El chico la ve en el juego, puede mejorar el texto y volver a enviarlo.
 - **🎯 Mis misiones**: las actividades que la seño prepara para hacer en clase, con su consigna (se puede escuchar).
 - **Repaso al estilo Duolingo**: lo que sale mal vuelve al final de la actividad, con las opciones mezcladas, hasta que sale bien (cada pregunta vuelve hasta 2 veces). Para las estadísticas cuenta la primera respuesta.
 - **👤 Mi perfil**: avatar con 12 categorías para personalizar (peinado, ropa, gorros, anteojos, mascotas, fondos, marcos…). Todo lo que sirve para que el avatar se parezca al chico (piel, peinados, color de pelo natural, ojos, boca, ropa básica y sus colores, anteojos comunes) es **gratis**. Los **extras** de fantasía (gorros, mascotas, fondos, marcos, anteojos de sol, remeras con dibujo, capa, colores de pelo fantasía) se compran con monedas o se ganan con niveles y medallas.
@@ -64,12 +66,13 @@ El juego se usa **solo en la escuela**, en las computadoras del aula (`iniciar_e
 ## Panel docente
 
 - **Buscador rápido** arriba de todo (o **Ctrl+K**): encuentra alumnos, cuentos, actividades, misiones, temas y secciones, sin importar tildes ni mayúsculas, y lleva directo con Enter.
+- **Escritos**: los textos de los chicos para revisar, con estrellas, devolución (con frases rápidas) y consignas propias. También aparecen en la ficha de cada alumno.
 - **Panel general**: indicadores, evolución semanal del grupo, alumnos para acompañar (con botón **«Asignar refuerzo»**: crea en un clic una misión de repaso del tema que le cuesta), resultados por tema, mapa del grupo y actividad reciente.
 - **Alumnos**: ficha de cada chico con evolución, resultados por tema, preguntas donde se equivoca, historial, misiones, **observaciones** (registro con fecha) y su clave de acceso.
 - **Misiones**: crear misiones (actividades para hacer en clase) eligiendo actividades, destinatarios (todos, un grado o algunos chicos), fecha límite y premio. Ver quién terminó, con qué resultado y quién la terminó **fuera de término**.
 - **Actividades**: ocultar o mostrar actividades y **crear propias** de cualquiera de los 9 tipos de juego).
 - **Temas y contenidos**: qué aprendizaje trabaja cada tema; se pueden desactivar temas no enseñados todavía.
-- **Ajustes**: preferencias del juego, cambio de contraseña, exportar resultados a Excel (CSV), copia de seguridad y registro de accesos.
+- **Ajustes**: preferencias del juego (incluida la **lectura automática por grado**: recomendada en 1.º y 2.º; en 3.º leen solos), cambio de contraseña, exportar resultados a Excel (CSV), copia de seguridad y registro de accesos.
 
 ## Seguridad
 

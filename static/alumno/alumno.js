@@ -8,6 +8,7 @@ let ING = null;        // datos de la pantalla de ingreso
 let P = null;          // perfil del chico
 let ACTS = [];         // actividades disponibles
 let TAREAS = [];       // tareas de la seño
+let ESCRITOS = [];     // consignas de «Escribo» con lo último que escribió el chico
 let pantalla = "carga", sub = {}, J = null, R = null;
 
 const ELOGIOS = ["¡Muy bien! 🎉", "¡Genial! ⭐", "¡Excelente! 🙌", "¡Así se hace! 📖", "¡Bravo! 👏", "¡Sos un genio! 💡", "¡Perfecto! 🌈"];
@@ -88,9 +89,11 @@ function ir(p, extra) {
 }
 function render() {
   const app = $("#app");
-  app.classList.toggle("mayus", !!(P && P.cfg.mayus));
+  // La actividad de mayúsculas se muestra tal cual (en IMPRENTA MAYÚSCULA no se notaría la diferencia)
+  app.classList.toggle("mayus", !!(P && P.cfg.mayus) && !(pantalla === "jugar" && J && J.act && J.act.minusculas));
   const v = {carga: () => `<p class="center">Cargando…</p>`, ingreso: vIngreso, clave: vClave, inicio: vInicio, zona: vZona,
-             leer: vLeer, jugar: vJugar, premio: vPremio, tareas: vTareas, perfil: vPerfil}[pantalla] || vInicio;
+             leer: vLeer, jugar: vJugar, premio: vPremio, tareas: vTareas, perfil: vPerfil,
+             escribo: vEscribo, escribir: vEscribir}[pantalla] || vInicio;
   app.innerHTML = `<div class="entra">${v()}</div>`;
   if (pantalla === "leer" && P.cfg.auto_leer && sub.autoLeer) { sub.autoLeer = false; setTimeout(leerTodo, 450); }
   if (pantalla === "jugar" && P.cfg.auto_leer && !J.leida) { J.leida = true; setTimeout(leerConsigna, 350); }
@@ -104,7 +107,8 @@ async function seguro(fn) {
   }
 }
 async function cargarTodo() {
-  [P, ACTS, TAREAS] = await Promise.all([api("/api/alumno/perfil"), api("/api/alumno/actividades"), api("/api/alumno/tareas")]);
+  [P, ACTS, TAREAS, ESCRITOS] = await Promise.all([api("/api/alumno/perfil"), api("/api/alumno/actividades"),
+                                                   api("/api/alumno/tareas"), api("/api/alumno/escritos")]);
 }
 
 /* =========================================================
@@ -180,11 +184,71 @@ function vInicio() {
   </section>
   <div class="zonas">
     ${zonas}
+    <button class="zona" data-act="ir" data-p="escribo">${nuevasDevoluciones() ? `<span class="badge">${nuevasDevoluciones()}</span>` : ""}
+      <div class="cab g-escribo"><span class="flota">✍️</span></div><div class="pie"><h3 class="kid">Escribo</h3><p class="kid">Escribí y la seño te responde</p></div></button>
     <button class="zona" data-act="ir" data-p="tareas">${pend.length ? `<span class="badge">${pend.length}</span>` : ""}
       <div class="cab g-tareas"><span class="flota">🎯</span></div><div class="pie"><h3 class="kid">Mis misiones</h3><p class="kid">Lo que preparó la seño</p></div></button>
     <button class="zona" data-act="ir" data-p="perfil">
       <div class="cab g-perfil">${Avatar.svg(P.avatar, 92)}</div><div class="pie"><h3 class="kid">Mi perfil</h3><p class="kid">Avatar, medallas y álbum</p></div></button>
   </div>`;
+}
+
+/* =========================================================
+   Escribo: producción escrita. El chico escribe con sus palabras y la seño le responde.
+   ========================================================= */
+const nuevasDevoluciones = () => ESCRITOS.filter(c => c.ultimo && c.ultimo.estado === "revisado" && !c.ultimo.visto).length;
+const contarPalabras = t => (String(t).match(/[\p{L}0-9]+/gu) || []).length;
+function estadoEscrito(c) {
+  if (!c.ultimo) return `<span class="fecha">✨ Nueva</span>`;
+  if (c.ultimo.estado === "pendiente") return `<span class="fecha">✉️ Enviado: la seño lo va a leer</span>`;
+  return `<span class="fecha ${c.ultimo.visto ? "" : "urge"}">${c.ultimo.visto ? "💬" : "🔔"} La seño te respondió ${"⭐".repeat(c.ultimo.estrellas || 0)}</span>`;
+}
+function vEscribo() {
+  const tarjeta = c => `
+    <article class="card tarea">
+      <div class="cab-t"><h3 class="kid">${c.e} ${esc(c.titulo)}</h3>${estadoEscrito(c)}</div>
+      <div class="seno"><span class="cara">👩‍🏫</span><span class="kid" style="flex:1">${esc(c.consigna)}</span>
+        <button class="btn blanco chico" data-act="leerTexto" data-t="${esc(c.consigna)}" aria-label="Escuchar">🔊</button></div>
+      <div class="row"><button class="btn ${c.ultimo ? "blanco" : "verde"}" data-act="abrirEscrito" data-id="${c.id}">${c.ultimo ? (c.ultimo.estado === "revisado" ? "📖 Ver y mejorar" : "✏️ Ver lo que escribí") : "✏️ ¡A escribir!"}</button></div>
+    </article>`;
+  return barraTop() + `
+  <div class="encab"><h2 class="kid">✍️ Escribo</h2><button class="btn blanco" data-act="ir" data-p="inicio">⬅️ Volver a la isla</button></div>
+  <p class="kid" style="font-size:1.2rem;margin-top:0">Elegí una consigna y escribí con tus palabras. La seño lo va a leer y te va a responder. 💌</p>
+  ${ESCRITOS.length ? ESCRITOS.map(tarjeta).join("") : `<div class="card center"><h3 class="kid">Todavía no hay consignas para tu grado.</h3></div>`}`;
+}
+function vEscribir() {
+  const c = ESCRITOS.find(x => x.id === sub.consigna);
+  if (!c) return vEscribo();
+  const u = c.ultimo;
+  const devolucion = u && u.estado === "revisado" ? `
+    <div class="seno devolucion"><span class="cara">💬</span><span class="kid" style="flex:1"><b>La seño te respondió ${"⭐".repeat(u.estrellas || 0)}</b><br>${esc(u.devolucion || "¡Muy bien!")}</span>
+      ${u.devolucion ? `<button class="btn blanco chico" data-act="leerTexto" data-t="${esc(u.devolucion)}" aria-label="Escuchar">🔊</button>` : ""}</div>` : "";
+  const previo = u ? `<details class="previo"><summary class="kid">📄 Lo que escribiste el ${fechaCorta(u.fecha)}</summary><p class="kid">${esc(u.texto)}</p></details>` : "";
+  return barraTop() + `
+  <div class="card escribir">
+    <div class="encab" style="margin-bottom:6px"><h2 class="kid">${c.e} ${esc(c.titulo)}</h2></div>
+    <div class="seno"><span class="cara">👩‍🏫</span><span class="kid" style="flex:1">${esc(c.consigna)}</span>
+      <button class="btn blanco chico" data-act="leerTexto" data-t="${esc(c.consigna)}" aria-label="Escuchar">🔊</button></div>
+    ${devolucion}${previo}
+    <label class="kid" for="txtEscrito" style="font-weight:800;font-size:1.2rem">${u && u.estado === "revisado" ? "Mejorá tu texto con lo que te dijo la seño:" : "Escribí acá:"}</label>
+    <textarea id="txtEscrito" class="kid hoja" maxlength="1500" spellcheck="false" autocomplete="off" autocapitalize="off"
+      placeholder="Escribí con tus palabras…">${u ? esc(u.texto) : ""}</textarea>
+    <div class="row" style="justify-content:space-between;align-items:center">
+      <span class="kid contador" id="contador"></span>
+      <div class="row">
+        <button class="btn blanco" data-act="ir" data-p="escribo">⬅️ Volver</button>
+        <button class="btn verde" data-act="enviarEscrito" data-id="${c.id}">✉️ Enviar a la seño</button>
+      </div>
+    </div>
+    <div class="msg kid" id="msg" aria-live="polite"></div>
+  </div>`;
+}
+function actualizarContador() {
+  const c = ESCRITOS.find(x => x.id === sub.consigna), t = $("#txtEscrito"), n = $("#contador");
+  if (!c || !t || !n) return;
+  const p = contarPalabras(t.value);
+  n.textContent = p >= c.min ? `✅ ${p} palabras` : `✏️ ${p} de ${c.min} palabras como mínimo`;
+  n.classList.toggle("ok", p >= c.min);
 }
 
 function vZona() {
@@ -223,18 +287,18 @@ function prepararJuego(act, tarea) {
       return q;
     }).sort((a, b) => (a.t === "o") - (b.t === "o"));
   } else if (act.tipo === "oraciones") {
-    items = act.items.map(it => { const pal = it.t.split(" "); return {...it, tema: "oraciones", pal, pool: mezclar(pal.map((w, i) => ({w, i})))}; });
+    items = act.items.map(it => { const pal = it.t.split(" "); return {...it, tema: act.tema || "oraciones", pal, pool: mezclar(pal.map((w, i) => ({w, i})))}; });
   } else if (act.tipo === "rimas") {
-    items = act.items.map(it => ({...it, tema: "rimas", ops: mezclar([{...it.c, ok: true}, ...it.x.slice(0, g1 ? 1 : 2).map(x => ({...x, ok: false}))])}));
+    items = act.items.map(it => ({...it, tema: act.tema || "rimas", ops: mezclar([{...it.c, ok: true}, ...it.x.slice(0, g1 ? 1 : 2).map(x => ({...x, ok: false}))])}));
   } else if (act.tipo === "silabas") {
     const todas = [...new Set(act.items.flatMap(it => it.p.split("-")))];
     items = act.items.map(it => {
       const sil = it.p.split("-");
       const extra = g1 ? [] : mezclar(todas.filter(s => !sil.includes(s))).slice(0, 1).map(s => ({s, i: -1}));
-      return {...it, tema: "silabas", sil, palabra: sil.join(""), pool: mezclar([...sil.map((s, i) => ({s, i})), ...extra])};
+      return {...it, tema: act.tema || "silabas", sil, palabra: sil.join(""), pool: mezclar([...sil.map((s, i) => ({s, i})), ...extra])};
     });
   } else if (JUEGOS_ELEGIR.includes(act.tipo)) {
-    const tema = CAT.tipos[act.tipo].tema;
+    const tema = act.tema || CAT.tipos[act.tipo].tema;
     items = act.items.map(it => {
       if (act.tipo === "clases") return {...it, tema, ops: Object.entries(CAT.clases).map(([k, t]) => ({t, ok: k === it.c}))};
       const ops = mezclar((g1 ? it.o.slice(0, 2) : it.o).map((t, i) => ({t, ok: i === 0})));
@@ -242,7 +306,7 @@ function prepararJuego(act, tarea) {
       return {...it, tema, ops, resp};
     });
   } else {
-    items = act.items.map(it => ({...it, tema: "escritura", pool: mezclar(it.p.split("").map((l, i) => ({l, i})))}));
+    items = act.items.map(it => ({...it, tema: act.tema || "escritura", pool: mezclar(it.p.split("").map((l, i) => ({l, i})))}));
   }
   // res: resultado de la primera vuelta (lo que se guarda) · marcas: color de cada puntito · corregidas: repasos que salieron bien
   return {act, tipo: act.tipo, tarea, items, i: 0, err: 0, res: [], marcas: [], corregidas: 0, bloq: false, pos: 0, puestos: [], t0: Date.now(), leida: false};
@@ -288,6 +352,17 @@ function leerTodo() {
   sig();
 }
 
+// Signos de puntuación: el hueco puede ser un signo, y la voz lo nombra en vez de leer el símbolo
+const SIGNOS = {"?": "signo de pregunta", "¿": "signo de pregunta que abre", "!": "signo de exclamación",
+                "¡": "signo de exclamación que abre", ".": "punto", ",": "coma"};
+const nombreSigno = t => SIGNOS[t] || t;
+function preguntaFalta(q) {
+  if (J.act.pregunta) return J.act.pregunta;
+  if (q.ops.every(o => SIGNOS[o.t])) return "¿Qué signo falta?";
+  if (J.tipo === "completar") return "¿Qué palabra falta?";
+  const largas = q.ops.filter(o => o.t.length > 1).length;
+  return !largas ? "¿Qué letra falta?" : largas === q.ops.length ? "¿Qué letras faltan?" : "¿Qué letra o letras faltan?";
+}
 function conHueco(t) { return t.split("_").map(esc).join(`<span class="hueco" id="hueco">?</span>`); }
 function resaltar(t, p) {
   const i = t.toLowerCase().indexOf(p.toLowerCase());
@@ -337,10 +412,10 @@ function vJugar() {
       `<button class="opt kid ${J.tipo === "ortografia" ? "letra-op" : ""}" style="text-align:center" data-act="elegir" data-k="${k}">${esc(o.t)}</button>`).join("")}</div>`;
     if (J.tipo === "ortografia") {
       cuerpo = `<div class="pic">${q.e}</div><div class="palabra-grande kid">${conHueco(q.p)}</div>
-        <p class="q kid center">¿Qué letra falta? ${parlante}</p>${opts}`;
+        <p class="q kid center">${preguntaFalta(q)} ${parlante}</p>${opts}`;
     } else if (J.tipo === "completar") {
-      cuerpo = `<div class="pic">${q.e}</div><p class="q kid center oracion">${conHueco(q.t)}.</p>
-        <p class="q kid center">¿Qué palabra falta? ${parlante}</p>${opts}`;
+      cuerpo = `<div class="pic">${q.e}</div><p class="q kid center oracion">${conHueco(q.t)}${/[.?!_]$/.test(q.t) ? "" : "."}</p>
+        <p class="q kid center">${preguntaFalta(q)} ${parlante}</p>${opts}`;
     } else if (J.tipo === "opuestos") {
       cuerpo = `<div class="pic">${q.e}</div><div class="palabra-grande kid">${esc(q.p)}</div>
         <p class="q kid center">${q.r === "opuesto" ? `¿Qué palabra es <u>lo contrario</u> de «${esc(q.p)}»?` : `¿Qué palabra quiere decir <u>casi lo mismo</u> que «${esc(q.p)}»?`} ${parlante}</p>${opts}`;
@@ -375,8 +450,8 @@ function leerConsigna() {
   } else if (J.tipo === "oraciones") decir(q.t);
   else if (J.tipo === "rimas") decir("¿Qué palabra rima con " + q.p + "? " + q.ops.map(o => o.t).join(", "));
   else if (J.tipo === "silabas") decir(q.sil.join(", ") + ". " + q.palabra);
-  else if (J.tipo === "ortografia") decir("¿Qué letra falta en la palabra " + q.resp + "? ¿" + q.ops.map(o => o.t).join(" o ") + "?");
-  else if (J.tipo === "completar") decir(q.t.replace("_", "...") + ". ¿Qué palabra falta? " + q.ops.map(o => o.t).join(", "));
+  else if (J.tipo === "ortografia") decir(preguntaFalta(q).replace("?", " en la palabra " + q.resp + "?") + " ¿" + q.ops.map(o => o.t).join(" o ") + "?");
+  else if (J.tipo === "completar") decir(q.t.replace("_", "...") + ". " + preguntaFalta(q) + " " + q.ops.map(o => nombreSigno(o.t)).join(", "));
   else if (J.tipo === "opuestos") decir((q.r === "opuesto" ? "¿Qué palabra es lo contrario de " : "¿Qué palabra quiere decir casi lo mismo que ") + q.p + "? " + q.ops.map(o => o.t).join(", "));
   else if (J.tipo === "clases") decir((q.t ? q.t + ". " : "") + "La palabra " + q.p + ", ¿nombra algo, dice cómo es o dice una acción?");
   else decir(q.p);
@@ -430,9 +505,10 @@ function ayudar(q, T) {
   }
   $$(".ayuda").forEach(b => b.classList.remove("ayuda"));
   if (boton) boton.classList.add("ayuda");
-  const limpia = String(dicha).replace(/^[^\p{L}¡¿]+/u, "");
+  // Saca el emoji del principio (en «Ordenar los hechos»), pero no borra un signo de puntuación suelto
+  const limpia = /\p{L}/u.test(dicha) ? String(dicha).replace(/^[^\p{L}¡¿]+/u, "") : String(dicha);
   $("#msg").innerHTML = `${esc(T.pista)}<br><b>Mirá: la respuesta es «${esc(limpia)}». ¡Tocala! ✨</b>`;
-  callar(); decir((q.ops || q.t === "vf" ? "La respuesta es: " : "Sigue: ") + limpia);
+  callar(); decir((q.ops || q.t === "vf" ? "La respuesta es: " : "Sigue: ") + nombreSigno(limpia));
 }
 function sacudir(el) { el.classList.remove("shake"); void el.offsetWidth; el.classList.add("shake"); }
 
@@ -567,6 +643,28 @@ function vPerfil() {
    ========================================================= */
 const A = {
   ir: el => { sub.probando = null; sub.confirmar = null; ir(el.dataset.p); },
+  abrirEscrito: async el => {
+    sub.consigna = el.dataset.id; ir("escribir"); actualizarContador();
+    const c = ESCRITOS.find(x => x.id === sub.consigna);
+    if (c && c.ultimo && c.ultimo.estado === "revisado" && !c.ultimo.visto) {
+      c.ultimo.visto = true;
+      api(`/api/alumno/escritos/${c.ultimo.id}/visto`, {method: "POST"}).catch(() => {});
+    }
+    const t = $("#txtEscrito"); if (t) { t.focus(); t.setSelectionRange(t.value.length, t.value.length); }
+  },
+  enviarEscrito: async el => {
+    const t = $("#txtEscrito"), c = ESCRITOS.find(x => x.id === el.dataset.id);
+    if (!t || !c) return;
+    if (contarPalabras(t.value) < c.min) { sonar("no"); $("#msg").textContent = `Escribí un poquito más: al menos ${c.min} palabras. ¡Vos podés! ✏️`; t.focus(); return; }
+    el.disabled = true;
+    const r = await seguro(() => api("/api/alumno/escritos", {method: "POST", body: {consigna_id: c.id, texto: t.value}}));
+    el.disabled = false;
+    if (!r) return;
+    sonar("fin"); confeti(40);
+    await seguro(cargarTodo);
+    toast(`✉️ ¡Se lo mandaste a la seño! +${r.monedas} 🪙`);
+    ir("escribo");
+  },
   elegirChico: el => { sub.alumno = ING.alumnos.find(a => String(a.id) === el.dataset.id); sub.clave = []; sub.errClave = ""; ir("clave"); },
   volverIngreso: () => ir("ingreso"),
   borrarClave: () => { sub.clave = []; sub.errClave = ""; render(); },
@@ -682,6 +780,11 @@ document.addEventListener("click", e => {
   if (!el) return;
   const f = A[el.dataset.act];
   if (f) f(el, e);
+});
+document.addEventListener("input", e => {
+  if (e.target.id !== "txtEscrito") return;
+  actualizarContador();
+  const m = $("#msg"); if (m) m.textContent = "";
 });
 document.addEventListener("keydown", e => {
   if ((e.key === "Enter" || e.key === " ") && e.target.matches("[role=button][data-act]")) { e.preventDefault(); e.target.click(); }

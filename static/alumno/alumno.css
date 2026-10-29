@@ -284,3 +284,16 @@ body.muda [data-act="leerConsigna"], body.muda [data-act="leerTodo"], body.muda 
 .repaso-aviso{margin:12px 0 4px;padding:10px 16px;border-radius:14px;background:var(--sand);border:3px solid var(--sun2);font-weight:800;font-size:1.2rem;text-align:center}
 .repaso-aviso.chico{display:inline-block;padding:4px 12px;font-size:1rem;border-width:2px}
 .repaso-fin{font-size:1.15rem;font-weight:700;background:var(--mint);border-radius:14px;padding:10px 16px;display:inline-block}
+
+/* ---------- Escribo ---------- */
+.g-escribo{background:linear-gradient(135deg,#ffe0f0,#ffb3d1)}
+.escribir .hoja{width:100%;min-height:220px;margin:8px 0 12px;padding:16px 18px;font:inherit;font-family:Andika,system-ui,sans-serif;font-size:1.45rem;line-height:1.7;border:3px solid var(--ink);border-radius:18px;
+  background:#fff repeating-linear-gradient(transparent 0 2.45rem,#dfe7f5 2.45rem 2.5rem);background-attachment:local;resize:vertical;color:var(--ink)}
+.escribir .hoja:focus{outline:4px solid var(--sun2);outline-offset:2px}
+.contador{font-weight:800;font-size:1.1rem;color:var(--ink2)}
+.contador.ok{color:var(--leaf2)}
+.devolucion{background:#e9fbef;border-color:#8fdcae}
+.previo{margin:6px 0 10px;font-size:1.05rem}
+.previo summary{cursor:pointer;font-weight:800}
+.previo p{white-space:pre-wrap;background:#fff;border:2px dashed #c9d3e6;border-radius:12px;padding:10px 12px}
+.fecha.urge{background:var(--rose)}

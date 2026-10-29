@@ -239,8 +239,14 @@ def items_validos(act, cfg):
         todos = {i: q["tema"] for i, q in enumerate(act["preguntas"])}
         activos = {i: t for i, t in todos.items() if t not in off}
         return activos or todos
-    tema = C.TIPOS[act["tipo"]]["tema"]
+    tema = tema_actividad(act)
     return {i: tema for i in range(len(act["items"]))}
+
+
+def tema_actividad(act):
+    """Tema de un juego: el de su tipo, salvo que la actividad indique otro
+    (por ejemplo «Mayúsculas» usa el juego de completar pero trabaja ortografía)."""
+    return act.get("tema") or C.TIPOS[act["tipo"]]["tema"]
 
 
 def tema_juego_activo(act, cfg):
@@ -248,7 +254,7 @@ def tema_juego_activo(act, cfg):
     if act["tipo"] == "cuento":
         # Si la docente apagó los temas de todas sus preguntas, el cuento no aparece en el juego libre
         return any(q["tema"] not in off for q in act["preguntas"])
-    return C.TIPOS[act["tipo"]]["tema"] not in off
+    return tema_actividad(act) not in off
 
 
 def niveles_para(grado, cfg):
@@ -300,7 +306,7 @@ def texto_item(act, idx):
 
 
 def resumen_actividad(act):
-    temas = sorted({q["tema"] for q in act["preguntas"]}) if act["tipo"] == "cuento" else [C.TIPOS[act["tipo"]]["tema"]]
+    temas = sorted({q["tema"] for q in act["preguntas"]}) if act["tipo"] == "cuento" else [tema_actividad(act)]
     n = len(act["preguntas"] if act["tipo"] == "cuento" else act["items"])
     return {"id": act["id"], "tipo": act["tipo"], "titulo": act["titulo"], "e": act.get("e", "📖"),
             "sticker": act.get("sticker", "⭐"), "nivel": int(act["nivel"]), "temas": temas, "n": n,
@@ -392,7 +398,7 @@ def medallas_posibles(con, alumno, cfg):
         if a["tipo"] == "cuento":
             temas |= {q["tema"] for q in a["preguntas"] if q["tema"] not in off}
         else:
-            temas.add(C.TIPOS[a["tipo"]]["tema"])
+            temas.add(tema_actividad(a))
     posibles = {"m1": cuentos >= 1, "m3": cuentos >= 3, "m6": cuentos >= 6, "j3": juegos >= 3,
                 "perf": bool(ids), "perf3": len(ids) >= 5, "rep": bool(ids), "t1": True, "t5": True}
     posibles.update({"tema-" + k: k in temas for k in C.TEMAS})
@@ -537,7 +543,7 @@ def api_alumno_perfil():
         # Solo se muestran las medallas que ya ganó o que puede ganar con lo que tiene para jugar
         "medallas": [{**m, "fecha": meds.get(m["id"])} for m in C.MEDALLAS
                      if m["id"] in meds or m["id"] in posibles], "album": album,
-        "cfg": {"mayus": a["grado"] == 1 and cfg["mayus_1"], "auto_leer": cfg["auto_leer"],
+        "cfg": {"mayus": a["grado"] == 1 and cfg["mayus_1"], "auto_leer": cfg["auto_leer"] and a["grado"] in cfg["auto_leer_grados"],
                 "voz_lenta": cfg["voz_lenta"], "voz_alegre": cfg["voz_alegre"], "sonido": cfg["sonido"], "voz": cfg["voz"]},
     }
     con.close()
@@ -578,7 +584,8 @@ def api_alumno_actividad(aid):
     if not act or aid not in permitidas:
         return error("Esa actividad no está disponible.", 404)
     validos = items_validos(act, cfg)
-    salida = {k: act[k] for k in ("id", "tipo", "titulo", "e", "sticker", "nivel") if k in act}
+    salida = {k: act[k] for k in ("id", "tipo", "titulo", "e", "sticker", "nivel", "minusculas", "pregunta") if k in act}
+    salida["tema"] = None if act["tipo"] == "cuento" else tema_actividad(act)
     if act["tipo"] == "cuento":
         salida["texto"] = act["texto"]
         salida["preguntas"] = [{**q, "idx": i} for i, q in enumerate(act["preguntas"]) if i in validos]
@@ -1008,7 +1015,9 @@ def api_docente_resumen():
                           ",".join("?" * len(asig)), (t["id"], *asig)).fetchone()[0] if asig else 0
         tareas.append({"id": t["id"], "titulo": t["titulo"], "fecha_limite": t["fecha_limite"], "asignados": len(asig),
                        "entregadas": ent, "vencida": bool(t["fecha_limite"] and t["fecha_limite"] < hoy)})
-    out = {"kpis": {"alumnos": len(alumnos), "semana": semana, "promedio": pct(tot[0] or 0, tot[1]),
+    escritos_pend = con.execute(f"SELECT COUNT(*) FROM escritos WHERE estado='pendiente' AND {fm}", pm).fetchone()[0]
+    out = {"escritos_pendientes": escritos_pend,
+           "kpis": {"alumnos": len(alumnos), "semana": semana, "promedio": pct(tot[0] or 0, tot[1]),
                     "tareas": sum(1 for t in tareas if not t["vencida"])},
            "semanas": semanas(con), "temas": [{"id": t, **C.TEMAS[t], "pct": (grupo.get(t) or {}).get("pct"),
                                                 "cant": (grupo.get(t) or {}).get("n", 0)} for t in temas_on],
@@ -1140,7 +1149,7 @@ def api_docente_alumno_reiniciar(aid):
     if not alumno_mio(con, aid):
         con.close()
         return error("Ese alumno no existe.", 404)
-    for t in ("respuestas", "intentos", "medallas", "inventario", "tarea_entregas"):
+    for t in ("respuestas", "intentos", "medallas", "inventario", "tarea_entregas", "escritos"):
         con.execute(f"DELETE FROM {t} WHERE alumno_id=?", (aid,))
     con.execute("UPDATE alumnos SET monedas=0, xp=0, avatar=? WHERE id=?", (json.dumps(C.AVATAR_INICIAL), aid))
     con.commit()
@@ -1199,7 +1208,9 @@ def api_docente_alumno_ficha(aid):
            "pct": pct(tot[0] or 0, tot[1]), "respuestas": tot[1], "actividades": len(mejores),
            "estrellas": sum(mejores.values()), "medallas": n_med, "minutos": round(tiempo / 60),
            "temas": temas, "semanas": semanas(con, aid), "intentos": intentos, "errores": errores,
-           "tareas": tareas, "observaciones": obs}
+           "tareas": tareas, "observaciones": obs,
+           "escritos": [escrito_json(r, {c["id"]: c for c in todas_consignas(con)})
+                        for r in con.execute("SELECT * FROM escritos WHERE alumno_id=? ORDER BY fecha DESC", (aid,))]}
     con.close()
     return jsonify(out)
 
@@ -1334,7 +1345,7 @@ def actividades_de_tema(con, alumno, tema, cfg):
     mejores = mejores_estrellas(con, alumno["id"])
     acts = [a for a in todas_actividades(con) if a.get("estado", "publicado") == "publicado" and int(a["nivel"]) in niveles
             and (any(q["tema"] == tema for q in a["preguntas"]) if a["tipo"] == "cuento"
-                 else C.TIPOS[a["tipo"]]["tema"] == tema)]
+                 else tema_actividad(a) == tema)]
     acts.sort(key=lambda a: (mejores.get(a["id"], 0), int(a["nivel"])))
     return acts
 
@@ -1425,6 +1436,180 @@ def api_docente_tarea_borrar(tid):
 
 
 # =================================================================
+# «Escribo»: producción escrita (los chicos escriben, la docente devuelve)
+# =================================================================
+PREMIO_ESCRITO = 15          # monedas por enviar un texto nuevo (5 si es otra versión del mismo)
+PREMIO_ESTRELLA = 5          # monedas por cada estrella que pone la docente
+ESPERA_ESCRITO = 10          # segundos mínimos entre dos envíos
+
+
+def todas_consignas(con):
+    out = [dict(c) for c in C.CONSIGNAS]
+    for r in con.execute("SELECT id, datos, creado FROM consignas_custom ORDER BY creado"):
+        out.append({**json.loads(r["datos"]), "id": r["id"], "base": False, "creado": r["creado"]})
+    return out
+
+
+def contar_palabras(t):
+    return len(re.findall(rf"[{LETRAS}0-9]+", t))
+
+
+def escrito_json(r, consignas):
+    c = consignas.get(r["consigna_id"])
+    return {"id": r["id"], "consigna_id": r["consigna_id"], "consigna": c["titulo"] if c else "(consigna borrada)",
+            "e": c["e"] if c else "✍️", "texto": r["texto"], "palabras": contar_palabras(r["texto"]), "fecha": r["fecha"],
+            "estado": r["estado"], "devolucion": r["devolucion"], "estrellas": r["estrellas"], "fecha_revision": r["fecha_revision"]}
+
+
+@app.get("/api/alumno/escritos")
+@requiere("alumno")
+def api_alumno_escritos():
+    con = con_db()
+    a = alumno_actual(con)
+    niveles = niveles_para(a["grado"], db.leer_config(con))
+    ultimos = {}
+    for r in con.execute("SELECT * FROM escritos WHERE alumno_id=? ORDER BY fecha, id", (a["id"],)):
+        ultimos[r["consigna_id"]] = r
+    consignas = {c["id"]: c for c in todas_consignas(con)}
+    out = []
+    for c in consignas.values():
+        u = ultimos.get(c["id"])
+        if int(c["nivel"]) in niveles or u:
+            out.append({**{k: c[k] for k in ("id", "titulo", "e", "nivel", "consigna", "min")},
+                        "ultimo": {**escrito_json(u, consignas), "visto": bool(u["visto"])} if u else None})
+    con.close()
+    return jsonify(out)
+
+
+@app.post("/api/alumno/escritos")
+@requiere("alumno")
+def api_alumno_escrito_enviar():
+    d = cuerpo()
+    con = con_db()
+    a = alumno_actual(con)
+    niveles = niveles_para(a["grado"], db.leer_config(con))
+    c = next((x for x in todas_consignas(con) if x["id"] == texto(d.get("consigna_id"), 40)), None)
+    if not c or int(c["nivel"]) not in niveles:
+        con.close()
+        return error("Esa consigna no está disponible.", 404)
+    t = re.sub(r"[ \t]+", " ", str(d.get("texto") or "")).strip()
+    t = re.sub(r"[\x00-\x08\x0b-\x1f]", "", t)
+    if len(t) > 1500:
+        con.close()
+        return error("¡Escribiste muchísimo! El máximo es 1500 letras.")
+    if contar_palabras(t) < int(c["min"]):
+        con.close()
+        return error(f"Escribí un poquito más: al menos {c['min']} palabras. ¡Vos podés! ✏️")
+    ultimo = con.execute("SELECT MAX(fecha) FROM escritos WHERE alumno_id=?", (a["id"],)).fetchone()[0]
+    if ultimo and datetime.now() - datetime.strptime(ultimo, "%Y-%m-%d %H:%M:%S") < timedelta(seconds=ESPERA_ESCRITO):
+        con.close()
+        return error("Esperá un momento antes de enviar otra vez.", 429)
+    previo = con.execute("SELECT 1 FROM escritos WHERE alumno_id=? AND consigna_id=?", (a["id"], c["id"])).fetchone()
+    monedas = 5 if previo else PREMIO_ESCRITO
+    con.execute("INSERT INTO escritos(alumno_id, consigna_id, texto, fecha) VALUES(?,?,?,?)", (a["id"], c["id"], t, db.ahora()))
+    con.execute("UPDATE alumnos SET monedas=monedas+?, xp=xp+? WHERE id=?", (monedas, monedas, a["id"]))
+    con.commit()
+    con.close()
+    return jsonify({"ok": True, "monedas": monedas})
+
+
+@app.post("/api/alumno/escritos/<int:eid>/visto")
+@requiere("alumno")
+def api_alumno_escrito_visto(eid):
+    con = con_db()
+    a = alumno_actual(con)
+    con.execute("UPDATE escritos SET visto=1 WHERE id=? AND alumno_id=?", (eid, a["id"]))
+    con.commit()
+    con.close()
+    return jsonify({"ok": True})
+
+
+@app.get("/api/docente/escritos")
+@requiere("docente")
+def api_docente_escritos():
+    con = con_db()
+    fg, pg = sql_grados(con, "a.grado")
+    consignas = {c["id"]: c for c in todas_consignas(con)}
+    filas = con.execute("SELECT e.*, a.nombre, a.grado, a.avatar FROM escritos e JOIN alumnos a ON a.id=e.alumno_id "
+                        f"WHERE {fg} ORDER BY e.estado='revisado', e.fecha DESC LIMIT 300", pg).fetchall()
+    out = [{**escrito_json(r, consignas), "alumno": {"id": r["alumno_id"], "nombre": r["nombre"], "grado": r["grado"],
+                                                      "avatar": avatar_de(r)}} for r in filas]
+    lista = [{**{k: c.get(k) for k in ("id", "titulo", "e", "nivel", "consigna", "min", "base")},
+              "escritos": sum(1 for x in out if x["consigna_id"] == c["id"])} for c in consignas.values()]
+    con.close()
+    return jsonify({"escritos": out, "consignas": lista, "rapidas": C.DEVOLUCIONES_RAPIDAS})
+
+
+@app.post("/api/docente/escritos/<int:eid>/devolucion")
+@requiere("docente")
+def api_docente_escrito_devolver(eid):
+    d = cuerpo()
+    dev = str(d.get("devolucion") or "").strip()
+    estrellas = entero(d.get("estrellas"), 1, 3)
+    if estrellas is None:
+        return error("Elegí de 1 a 3 estrellas.")
+    if len(dev) > 600:
+        return error("La devolución puede tener hasta 600 letras.")
+    con = con_db()
+    fg, pg = sql_grados(con, "a.grado")
+    r = con.execute(f"SELECT e.* FROM escritos e JOIN alumnos a ON a.id=e.alumno_id WHERE e.id=? AND {fg}", (eid, *pg)).fetchone()
+    if not r:
+        con.close()
+        return error("Ese escrito no existe.", 404)
+    primera = r["estado"] != "revisado"
+    con.execute("UPDATE escritos SET estado='revisado', devolucion=?, estrellas=?, revisado_por=?, fecha_revision=?, visto=0 WHERE id=?",
+                (dev, estrellas, session["uid"], db.ahora(), eid))
+    if primera:   # las monedas por estrellas se dan una sola vez
+        m = estrellas * PREMIO_ESTRELLA
+        con.execute("UPDATE alumnos SET monedas=monedas+?, xp=xp+? WHERE id=?", (m, m, r["alumno_id"]))
+    con.commit()
+    con.close()
+    return jsonify({"ok": True})
+
+
+@app.post("/api/docente/consignas")
+@requiere("docente")
+def api_docente_consigna_crear():
+    d = cuerpo()
+    titulo = re.sub(r"\s+", " ", str(d.get("titulo") or "")).strip()
+    consigna = re.sub(r"\s+", " ", str(d.get("consigna") or "")).strip()
+    if not titulo or len(titulo) > 60:
+        return error("El título es obligatorio y puede tener hasta 60 letras.")
+    if len(consigna) < 10 or len(consigna) > 400:
+        return error("La consigna tiene que tener entre 10 y 400 letras.")
+    if str(d.get("nivel")) not in ("1", "2", "3"):
+        return error("Elegí el nivel (1, 2 o 3).")
+    minimo = entero(d.get("min", 5), 1, 200)
+    if minimo is None:
+        return error("La cantidad mínima de palabras tiene que ser un número entre 1 y 200.")
+    try:
+        e = dibujo(d.get("e"), "La consigna") or "✍️"
+    except ValueError as ex:
+        return error(str(ex))
+    cid = "w-" + secrets.token_hex(4)
+    con = con_db()
+    con.execute("INSERT INTO consignas_custom VALUES(?,?,?)",
+                (cid, json.dumps({"titulo": titulo, "consigna": consigna, "nivel": int(d["nivel"]), "min": minimo, "e": e},
+                                 ensure_ascii=False), db.ahora()))
+    con.commit()
+    con.close()
+    return jsonify({"ok": True, "id": cid})
+
+
+@app.delete("/api/docente/consignas/<cid>")
+@requiere("docente")
+def api_docente_consigna_borrar(cid):
+    con = con_db()
+    if not con.execute("SELECT 1 FROM consignas_custom WHERE id=?", (cid,)).fetchone():
+        con.close()
+        return error("Esa consigna no existe o es de las incluidas.", 404)
+    con.execute("DELETE FROM consignas_custom WHERE id=?", (cid,))
+    con.commit()
+    con.close()
+    return jsonify({"ok": True})
+
+
+# =================================================================
 # API docente: actividades
 # =================================================================
 @app.get("/api/docente/actividades")
@@ -1467,14 +1652,15 @@ def _s(v, n=120):
     return texto(v, n)
 
 
-def opciones(it, n, donde):
+def opciones(it, n, donde, distinguir_mayusculas=False):
     """Opciones de un ítem de elegir: la primera es la correcta. Lanza ValueError si faltan o se repiten."""
     o = it.get("o") if isinstance(it.get("o"), list) else []
     o = [_s(x, n) for x in o]
     if not o or not o[0]:
         raise ValueError(f"{donde}: falta la respuesta correcta (va en el primer casillero).")
     limpias = [x for x in o if x]
-    if len({x.lower() for x in limpias}) < len(limpias):
+    # En «La palabra que falta» se distinguen mayúsculas («Luna» / «luna», para practicar su uso)
+    if len({x if distinguir_mayusculas else x.lower() for x in limpias}) < len(limpias):
         raise ValueError(f"{donde}: hay opciones repetidas.")
     if len(limpias) < 2:
         raise ValueError(f"{donde}: agregá al menos una opción incorrecta.")
@@ -1546,7 +1732,7 @@ def validar_item(tipo, it, donde):
         t = re.sub(r"_+", "_", re.sub(r"\s+", " ", _s(it.get("t"), 140))).strip(" .")
         if t.count("_") != 1 or len(t) < 6:
             raise ValueError(f"{donde}: escribí la oración con un solo _ donde va la palabra que falta.")
-        return {"e": e or "📌", "t": t, "o": opciones(it, 30, donde)}
+        return {"e": e or "📌", "t": t, "o": opciones(it, 30, donde, distinguir_mayusculas=True)}
     if tipo == "opuestos":
         p = _s(it.get("p"), 30).lower()
         if not p:
@@ -1757,7 +1943,7 @@ def api_docente_config():
     grupo = stats_temas(con)
     for k, t in C.TEMAS.items():
         n = sum(1 for a in acts if a["tipo"] == "cuento" for q in a["preguntas"] if q["tema"] == k) + \
-            sum(len(a["items"]) for a in acts if a["tipo"] != "cuento" and C.TIPOS[a["tipo"]]["tema"] == k)
+            sum(len(a["items"]) for a in acts if a["tipo"] != "cuento" and tema_actividad(a) == k)
         ej = next((q["p"] for a in acts if a["tipo"] == "cuento" for q in a["preguntas"] if q["tema"] == k and q["t"] != "o"), None)
         temas.append({"id": k, **t, "activo": k not in cfg["temas_off"], "items": n, "ejemplo": ej,
                       "pct": (grupo.get(k) or {}).get("pct"), "cant": (grupo.get(k) or {}).get("n", 0)})
@@ -1780,6 +1966,11 @@ def api_docente_config_guardar():
         if len(voz) > 120 or re.search(r"[\x00-\x1f<>]", voz):
             return error("El nombre de la voz no es válido.")
         cambios["voz"] = voz
+    if "auto_leer_grados" in d:
+        g = d["auto_leer_grados"]
+        if not isinstance(g, list) or any(x not in (1, 2, 3) or isinstance(x, bool) for x in g):
+            return error("Datos inválidos.")
+        cambios["auto_leer_grados"] = sorted(set(g))
     if "temas_off" in d:
         if not isinstance(d["temas_off"], list):
             return error("Datos inválidos.")

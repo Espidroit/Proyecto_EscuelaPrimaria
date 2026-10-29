@@ -60,15 +60,23 @@ TEMAS = {
                   "desc": "Elegir la palabra que le da sentido a la oración.",
                   "obj": "Seleccionar la palabra adecuada según el sentido y la concordancia de la oración.",
                   "pista": "Leé la oración entera con cada palabra. ¿Con cuál tiene sentido? 🤔"},
+    "familias": {"area": "Lengua: oraciones y palabras", "n": "Familias de palabras", "i": "🌳", "kid": "Palabras parientes",
+                 "desc": "Reconocer palabras de la misma familia, diminutivos y aumentativos.",
+                 "obj": "Formar familias de palabras y reconocer diminutivos (-ito, -ita) y aumentativos (-ote, -azo).",
+                 "pista": "Buscá la palabra que tiene adentro a la palabra principal. 🌳"},
     # --- Ortografía y gramática ---
     "sinonimos": {"area": "Lengua: ortografía y gramática", "n": "Sinónimos y antónimos", "i": "🔄", "kid": "Parecidas y opuestas",
                   "desc": "Encontrar palabras que quieren decir lo mismo o lo contrario.",
                   "obj": "Reconocer relaciones de significado entre palabras: sinónimos y antónimos.",
                   "pista": "Pensá qué quiere decir esa palabra. ¿Cuál se parece? ¿Cuál es lo contrario? 🔄"},
     "ortografia": {"area": "Lengua: ortografía y gramática", "n": "Ortografía", "i": "🖍️", "kid": "¿Con qué letra va?",
-                   "desc": "Completar palabras con la letra correcta (b/v, c/s/z, ll/y, r/rr, g/j, h).",
-                   "obj": "Reconocer la escritura convencional de palabras de uso frecuente.",
+                   "desc": "Completar palabras con la letra correcta (que/qui, gue/gui, mp/mb, r/rr, -aba, b/v, ll/y…) y usar mayúsculas.",
+                   "obj": "Reconocer la escritura convencional de palabras de uso frecuente y el uso de mayúsculas.",
                    "pista": "Pensá cómo la viste escrita en los libros o en los carteles. 📚"},
+    "acentuacion": {"area": "Lengua: ortografía y gramática", "n": "Sílaba tónica y tildes", "i": "📢", "kid": "¿Dónde suena más fuerte?",
+                    "desc": "Reconocer la sílaba que suena más fuerte y las palabras que llevan tilde.",
+                    "obj": "Identificar la sílaba tónica y escribir con tilde palabras de uso frecuente.",
+                    "pista": "Decí la palabra como si llamaras a alguien de lejos: ¿qué parte suena más fuerte? 📢"},
     "clases": {"area": "Lengua: ortografía y gramática", "n": "Clases de palabras", "i": "🏷️", "kid": "¿Quién, cómo es o qué hace?",
                "desc": "Distinguir palabras que nombran, que dicen cómo es algo y que dicen una acción.",
                "obj": "Reconocer sustantivos, adjetivos y verbos por su función en la oración.",
@@ -353,6 +361,521 @@ JUEGOS = [
         {"e": "🍽️", "p": "comer", "c": "v"}, {"e": "🌈", "p": "colorido", "c": "a"}]),
 ]
 
+# ---------------------------------------------------------------
+# Actividades agregadas (octubre 2026): al menos 10 por tipo de juego.
+# Elegidas según los NAP de Lengua del primer ciclo y el Plan de Alfabetización de Jujuy:
+# letra inicial y vocales (1.º), que/qui, gue/gui, mp/mb, sílabas trabadas (2.º),
+# r/rr y nr, -aba, puntuación, conectores, sinónimos/antónimos, sustantivos propios (3.º).
+# ---------------------------------------------------------------
+def _r(p, e, ct, ce, x1, e1, x2, e2):
+    """Ítem de rimas: palabra, palabra que rima y dos que no riman (con sus dibujos)."""
+    return {"p": p, "e": e, "c": {"t": ct, "e": ce}, "x": [{"t": x1, "e": e1}, {"t": x2, "e": e2}]}
+
+
+JUEGOS += [
+    # ---------------- Ordeno oraciones ----------------
+    _j("or-casa", "oraciones", "En casa", "🏡", "🧸", 1, [
+        {"e": "🍽️", "t": "Papá lava los platos"}, {"e": "🧸", "t": "Mi oso está en la cama"},
+        {"e": "🌱", "t": "Riego la planta del patio"}, {"e": "📺", "t": "Vemos dibujos en la tele"},
+        {"e": "🐈", "t": "El gato toma su leche"}, {"e": "🧹", "t": "Barro el piso de la cocina"}]),
+    _j("or-plaza", "oraciones", "En la plaza", "🌳", "🎈", 1, [
+        {"e": "🌳", "t": "Juego en la plaza con Leo"}, {"e": "🎈", "t": "Mi globo es de color azul"},
+        {"e": "🐦", "t": "Las palomas comen migas"}, {"e": "⚽", "t": "Pateo la pelota muy fuerte"},
+        {"e": "🍦", "t": "Mamá me compra un helado"}, {"e": "🌼", "t": "Hay flores en el pasto"}]),
+    _j("or-masc", "oraciones", "Mis mascotas", "🐾", "🐹", 2, [
+        {"e": "🐹", "t": "Mi hámster corre en su rueda"}, {"e": "🐕", "t": "Saco a pasear al perro cada tarde"},
+        {"e": "🐠", "t": "El pez dorado nada en la pecera"}, {"e": "🐢", "t": "La tortuga come hojas de lechuga"},
+        {"e": "🐇", "t": "Mi conejo tiene orejas largas"}, {"e": "🦜", "t": "El loro repite todo lo que digo"}]),
+    _j("or-comida", "oraciones", "Comidas ricas", "🍲", "🥟", 2, [
+        {"e": "🥟", "t": "La abuela prepara empanadas"}, {"e": "🍲", "t": "En invierno tomamos sopa caliente"},
+        {"e": "🍌", "t": "Me gusta la banana con leche"}, {"e": "🥪", "t": "Llevo un sándwich para la merienda"},
+        {"e": "🍊", "t": "Exprimimos naranjas para el jugo"}, {"e": "🍪", "t": "Horneamos galletitas de vainilla"}]),
+    _j("or-queb", "oraciones", "Paseo por la Quebrada", "🏜️", "🦙", 3, [
+        {"e": "🦙", "t": "Las llamas caminan despacio por el cerro"},
+        {"e": "🌵", "t": "El cardón crece entre las piedras del camino"},
+        {"e": "🏔️", "t": "Desde el cerro se ven los colores de la quebrada"},
+        {"e": "🧣", "t": "La tejedora hace un poncho de lana"},
+        {"e": "🌽", "t": "En la feria venden choclos y papas andinas"},
+        {"e": "☀️", "t": "Al mediodía el sol calienta mucho"}]),
+    _j("or-notic", "oraciones", "Noticias de la escuela", "📰", "📰", 3, [
+        {"e": "🏆", "t": "Nuestro grado ganó el concurso de lectura"},
+        {"e": "🌱", "t": "El lunes plantamos árboles en el patio"},
+        {"e": "🎭", "t": "Los alumnos de tercero prepararon una obra de teatro"},
+        {"e": "📚", "t": "La biblioteca recibió cajas llenas de libros nuevos"},
+        {"e": "🚌", "t": "El viernes viajamos en micro al museo"},
+        {"e": "🎶", "t": "El coro cantará en el acto de fin de año"}]),
+
+    # ---------------- Busco la rima ----------------
+    _j("ri-ani", "rimas", "Rimas de animales", "🐻", "🐑", 1, [
+        _r("ratón", "🐭", "jabón", "🧼", "sol", "☀️", "mesa", "🍽️"),
+        _r("abeja", "🐝", "oveja", "🐑", "gato", "🐱", "pan", "🍞"),
+        _r("perro", "🐶", "cerro", "⛰️", "flor", "🌸", "luna", "🌙"),
+        _r("rana", "🐸", "manzana", "🍎", "auto", "🚗", "pie", "🦶"),
+        _r("león", "🦁", "corazón", "❤️", "pato", "🦆", "casa", "🏠"),
+        _r("conejo", "🐰", "viejo", "👴", "nube", "☁️", "uva", "🍇")]),
+    _j("ri-casa", "rimas", "Rimas de la casa", "🏠", "🕯️", 1, [
+        _r("mesa", "🍽️", "fresa", "🍓", "perro", "🐶", "sol", "☀️"),
+        _r("silla", "🪑", "ardilla", "🐿️", "tren", "🚂", "pez", "🐟"),
+        _r("vela", "🕯️", "muela", "🦷", "luna", "🌙", "gato", "🐱"),
+        _r("taza", "☕", "calabaza", "🎃", "libro", "📚", "mono", "🐒"),
+        _r("olla", "🍲", "cebolla", "🧅", "flor", "🌸", "pie", "🦶"),
+        _r("puerta", "🚪", "huerta", "🥕", "nube", "☁️", "auto", "🚗")]),
+    _j("ri-cielo", "rimas", "Rimas del cielo", "☁️", "☄️", 1, [
+        _r("nube", "☁️", "sube", "⬆️", "pato", "🦆", "mesa", "🍽️"),
+        _r("cometa", "☄️", "bicicleta", "🚲", "perro", "🐶", "uva", "🍇"),
+        _r("rayo", "⚡", "gallo", "🐓", "flor", "🌸", "casa", "🏠"),
+        _r("viento", "🌬️", "cuento", "📖", "gato", "🐱", "pan", "🍞"),
+        _r("sol", "☀️", "caracol", "🐌", "silla", "🪑", "mano", "✋"),
+        _r("noche", "🌃", "coche", "🚗", "oso", "🐻", "pie", "🦶")]),
+    _j("ri-fruta", "rimas", "Rimas de frutas", "🍓", "🍐", 2, [
+        _r("pera", "🍐", "tijera", "✂️", "perro", "🐶", "sol", "☀️"),
+        _r("banana", "🍌", "campana", "🔔", "libro", "📚", "pez", "🐟"),
+        _r("frutilla", "🍓", "semilla", "🌱", "gato", "🐱", "tren", "🚂"),
+        _r("melón", "🍈", "balón", "⚽", "nube", "☁️", "casa", "🏠"),
+        _r("naranja", "🍊", "granja", "🚜", "luna", "🌙", "pie", "🦶"),
+        _r("cereza", "🍒", "princesa", "👸", "barco", "⛵", "oso", "🐻")]),
+    _j("ri-cantar", "rimas", "Rimas para cantar", "🎶", "🎸", 2, [
+        _r("cuaderno", "📓", "invierno", "❄️", "pato", "🦆", "flor", "🌸"),
+        _r("guitarra", "🎸", "cigarra", "🦗", "mesa", "🍽️", "sol", "☀️"),
+        _r("papel", "📄", "pincel", "🖌️", "gato", "🐱", "luna", "🌙"),
+        _r("lectura", "📖", "basura", "🗑️", "perro", "🐶", "pan", "🍞"),
+        _r("dibujo", "🎨", "brujo", "🧙", "silla", "🪑", "tren", "🚂"),
+        _r("escuela", "🏫", "abuela", "👵", "barco", "⛵", "uva", "🍇")]),
+    _j("ri-jug", "rimas", "Rimas de juguetes", "🧸", "🥁", 2, [
+        _r("tambor", "🥁", "flor", "🌸", "mesa", "🍽️", "pato", "🦆"),
+        _r("barco", "⛵", "arco", "🏹", "luna", "🌙", "pie", "🦶"),
+        _r("tren", "🚂", "sartén", "🍳", "gato", "🐱", "casa", "🏠"),
+        _r("globo", "🎈", "lobo", "🐺", "sol", "☀️", "silla", "🪑"),
+        _r("dado", "🎲", "helado", "🍦", "perro", "🐶", "nube", "☁️"),
+        _r("osito", "🧸", "pollito", "🐤", "libro", "📚", "pan", "🍞")]),
+    _j("ri-larg", "rimas", "Rimas con palabras largas", "✨", "🦋", 3, [
+        _r("mariposa", "🦋", "rosa", "🌹", "camión", "🚚", "estrella", "⭐"),
+        _r("chocolate", "🍫", "tomate", "🍅", "tortuga", "🐢", "camisa", "👔"),
+        _r("elefante", "🐘", "diamante", "💎", "caracol", "🐌", "pelota", "⚽"),
+        _r("tortuga", "🐢", "oruga", "🐛", "elefante", "🐘", "manzana", "🍎"),
+        _r("cocodrilo", "🐊", "hilo", "🧵", "zapato", "👞", "galleta", "🍪"),
+        _r("zanahoria", "🥕", "noria", "🎡", "paloma", "🕊️", "conejo", "🐰")]),
+    _j("ri-poema", "rimas", "Rimas para poemas", "📜", "🐧", 3, [
+        _r("caramelo", "🍬", "hielo", "🧊", "tortuga", "🐢", "camión", "🚚"),
+        _r("mariquita", "🐞", "campanita", "🔔", "elefante", "🐘", "zapato", "👞"),
+        _r("colibrí", "🐦", "maní", "🥜", "caracol", "🐌", "bufanda", "🧣"),
+        _r("pingüino", "🐧", "camino", "🛤️", "galleta", "🍪", "estrella", "⭐"),
+        _r("hormiga", "🐜", "espiga", "🌾", "pelota", "⚽", "paraguas", "☂️"),
+        _r("panadero", "👨‍🍳", "sombrero", "👒", "tomate", "🍅", "conejo", "🐰")]),
+
+    # ---------------- Armo palabras ----------------
+    _j("pa-tres", "palabras", "Palabras de tres letras", "🔤", "👑", 1, [
+        {"e": "🍇", "p": "uva"}, {"e": "🦶", "p": "pie"}, {"e": "🌊", "p": "mar"},
+        {"e": "👑", "p": "rey"}, {"e": "🧂", "p": "sal"}, {"e": "👁️", "p": "ojo"}]),
+    _j("pa-ani", "palabras", "Animales cortos", "🐾", "🐸", 1, [
+        {"e": "🐸", "p": "rana"}, {"e": "🦆", "p": "pato"}, {"e": "🐄", "p": "vaca"},
+        {"e": "🐒", "p": "mono"}, {"e": "🦜", "p": "loro"}, {"e": "🐂", "p": "toro"}]),
+    _j("pa-mesa", "palabras", "En la mesa", "🍽️", "🍯", 1, [
+        {"e": "☕", "p": "taza"}, {"e": "🥤", "p": "vaso"}, {"e": "🍲", "p": "sopa"},
+        {"e": "🥔", "p": "papa"}, {"e": "🍯", "p": "miel"}, {"e": "🍐", "p": "pera"}]),
+    _j("pa-nat", "palabras", "La naturaleza", "🌳", "🌋", 2, [
+        {"e": "🌳", "p": "árbol"}, {"e": "🍃", "p": "hoja"}, {"e": "🌧️", "p": "lluvia"},
+        {"e": "⛰️", "p": "montaña"}, {"e": "🌱", "p": "planta"}, {"e": "🌋", "p": "volcán"}]),
+    _j("pa-ropa", "palabras", "La ropa", "👕", "🧣", 2, [
+        {"e": "👕", "p": "remera"}, {"e": "🧢", "p": "gorra"}, {"e": "🧣", "p": "bufanda"},
+        {"e": "👞", "p": "zapato"}, {"e": "🧦", "p": "medias"}, {"e": "🧤", "p": "guantes"}]),
+    _j("pa-trans", "palabras", "Medios de transporte", "🚗", "🚀", 2, [
+        {"e": "⛵", "p": "barco"}, {"e": "✈️", "p": "avión"}, {"e": "🚚", "p": "camión"},
+        {"e": "🚀", "p": "cohete"}, {"e": "🏍️", "p": "moto"}, {"e": "🚂", "p": "tren"}]),
+    _j("pa-larg", "palabras", "Animales con nombres largos", "🦒", "🦛", 3, [
+        {"e": "🐘", "p": "elefante"}, {"e": "🐊", "p": "cocodrilo"}, {"e": "🦇", "p": "murciélago"},
+        {"e": "🦖", "p": "dinosaurio"}, {"e": "🦛", "p": "hipopótamo"}, {"e": "🦘", "p": "canguro"}]),
+    _j("pa-trab", "palabras", "Dos consonantes juntas", "🧩", "🐉", 3, [
+        {"e": "🎺", "p": "trompeta"}, {"e": "🪐", "p": "planeta"}, {"e": "🐉", "p": "dragón"},
+        {"e": "🦓", "p": "cebra"}, {"e": "🐯", "p": "tigre"}, {"e": "🧙", "p": "bruja"}]),
+
+    # ---------------- Juego de sílabas ----------------
+    _j("si-dos", "silabas", "Dos palmadas", "👏", "🍍", 1, [
+        {"e": "🏠", "p": "ca-sa"}, {"e": "🍽️", "p": "me-sa"}, {"e": "🐄", "p": "va-ca"},
+        {"e": "🌹", "p": "ro-sa"}, {"e": "🐂", "p": "to-ro"}, {"e": "🍍", "p": "pi-ña"}]),
+    _j("si-fac", "silabas", "Sílabas fáciles", "🐒", "🐸", 1, [
+        {"e": "🐒", "p": "mo-no"}, {"e": "🍐", "p": "pe-ra"}, {"e": "🦜", "p": "lo-ro"},
+        {"e": "🐸", "p": "sa-po"}, {"e": "🛏️", "p": "ca-ma"}, {"e": "👄", "p": "bo-ca"}]),
+    _j("si-ani", "silabas", "Animales en sílabas", "🐾", "🦁", 1, [
+        {"e": "🐻", "p": "o-so"}, {"e": "🐸", "p": "ra-na"}, {"e": "🐓", "p": "ga-llo"},
+        {"e": "🐶", "p": "pe-rro"}, {"e": "🦁", "p": "le-ón"}, {"e": "🐐", "p": "ca-bra"}]),
+    _j("si-tres", "silabas", "Tres sílabas", "🍎", "🐴", 2, [
+        {"e": "🍎", "p": "man-za-na"}, {"e": "👞", "p": "za-pa-to"}, {"e": "🕊️", "p": "pa-lo-ma"},
+        {"e": "🍪", "p": "ga-lle-ta"}, {"e": "🐰", "p": "co-ne-jo"}, {"e": "🐴", "p": "ca-ba-llo"}]),
+    _j("si-coc", "silabas", "En la cocina", "🍳", "🥄", 2, [
+        {"e": "🥄", "p": "cu-cha-ra"}, {"e": "🔪", "p": "cu-chi-llo"}, {"e": "🍳", "p": "sar-tén"},
+        {"e": "🧅", "p": "ce-bo-lla"}, {"e": "🥕", "p": "za-na-ho-ria"}, {"e": "🧀", "p": "que-so"}]),
+    _j("si-trab", "silabas", "Sílabas trabadas", "🧱", "🐉", 2, [
+        {"e": "🎈", "p": "glo-bo"}, {"e": "🍽️", "p": "pla-to"}, {"e": "📚", "p": "li-bro"},
+        {"e": "🐉", "p": "dra-gón"}, {"e": "🧙", "p": "bru-ja"}, {"e": "🌾", "p": "tri-go"}]),
+    _j("si-larg", "silabas", "Palabras muy largas", "🐊", "🦛", 3, [
+        {"e": "🐊", "p": "co-co-dri-lo"}, {"e": "🦇", "p": "mur-cié-la-go"}, {"e": "🦛", "p": "hi-po-pó-ta-mo"},
+        {"e": "🐞", "p": "ma-ri-qui-ta"}, {"e": "🥑", "p": "a-gua-ca-te"}, {"e": "☎️", "p": "te-lé-fo-no"}]),
+    _j("si-dif", "silabas", "Sílabas difíciles", "🎼", "🦖", 3, [
+        {"e": "💻", "p": "com-pu-ta-do-ra"}, {"e": "🦖", "p": "di-no-sau-rio"}, {"e": "☂️", "p": "pa-ra-guas"},
+        {"e": "⭐", "p": "es-tre-lla"}, {"e": "❄️", "p": "in-vier-no"}, {"e": "📚", "p": "bi-blio-te-ca"}]),
+
+    # ---------------- La palabra que falta ----------------
+    _j("co-cosas", "completar", "Completo con dibujos", "🐸", "☔", 1, [
+        {"e": "🐸", "t": "La rana vive en la _", "o": ["laguna", "heladera", "mochila"]},
+        {"e": "🍌", "t": "El mono come una _", "o": ["banana", "silla", "nube"]},
+        {"e": "☔", "t": "Cuando llueve uso el _", "o": ["paraguas", "helado", "libro"]},
+        {"e": "🛏️", "t": "De noche duermo en mi _", "o": ["cama", "plato", "auto"]},
+        {"e": "🦷", "t": "Me lavo los _ con el cepillo", "o": ["dientes", "zapatos", "árboles"]},
+        {"e": "🔥", "t": "El fuego está muy _", "o": ["caliente", "frío", "dulce"]}]),
+    _j("co-acc", "completar", "¿Qué hace?", "🏃", "📖", 1, [
+        {"e": "🏊", "t": "Los chicos _ en la pileta", "o": ["nadan", "duermen", "escriben"]},
+        {"e": "🎂", "t": "Juan _ las velitas de la torta", "o": ["sopla", "lava", "pinta"]},
+        {"e": "📖", "t": "La seño _ un cuento", "o": ["lee", "barre", "cocina"]},
+        {"e": "🐕", "t": "El perro _ cuando ve un gato", "o": ["ladra", "vuela", "maúlla"]},
+        {"e": "🎵", "t": "Los pájaros _ en la mañana", "o": ["cantan", "nadan", "leen"]},
+        {"e": "🍎", "t": "Sofía _ una manzana roja", "o": ["come", "lee", "escribe"]}]),
+    _j("co-como", "completar", "¿Cómo es?", "🎨", "❄️", 1, [
+        {"e": "🐘", "t": "El elefante es muy _", "o": ["grande", "chiquito", "verde"]},
+        {"e": "🍋", "t": "El limón es _", "o": ["ácido", "dulce", "peludo"]},
+        {"e": "❄️", "t": "La nieve es _", "o": ["blanca", "negra", "caliente"]},
+        {"e": "🐌", "t": "El caracol camina _", "o": ["despacio", "rápido", "volando"]},
+        {"e": "✨", "t": "Las estrellas se ven de _", "o": ["noche", "día", "siesta"]},
+        {"e": "🍬", "t": "El caramelo es _", "o": ["dulce", "salado", "amargo"]}]),
+    _j("co-conc", "completar", "Palabras que concuerdan", "🧩", "🌸", 2, [
+        {"e": "🐱", "t": "Los gatitos son muy _", "o": ["juguetones", "juguetón", "juguetona"]},
+        {"e": "🌸", "t": "Las flores del jardín están _", "o": ["lindas", "lindo", "linda"]},
+        {"e": "👧", "t": "Mi hermana _ en tercer grado", "o": ["está", "están", "estamos"]},
+        {"e": "🚗", "t": "Los autos _ por la calle", "o": ["pasan", "pasa", "pasás"]},
+        {"e": "🍞", "t": "El pan está _", "o": ["fresco", "fresca", "frescas"]},
+        {"e": "🐦", "t": "Ayer los pájaros _ en el nido", "o": ["cantaron", "canta", "cantará"]}]),
+    _j("co-tiempo", "completar", "¿Cuándo pasó?", "⏰", "📅", 2, [
+        {"e": "📅", "t": "Ayer _ al parque con mi tío", "o": ["fui", "voy", "iré"]},
+        {"e": "🔮", "t": "Mañana _ una torta de chocolate", "o": ["haremos", "hicimos", "hacíamos"]},
+        {"e": "👶", "t": "Cuando era chico, mi papá _ a la pelota", "o": ["jugaba", "jugará", "juega"]},
+        {"e": "✏️", "t": "Ahora mismo _ un dibujo", "o": ["estoy haciendo", "hice", "haré"]},
+        {"e": "🎄", "t": "El año que viene _ a visitar a mi abuela", "o": ["iremos", "fuimos", "íbamos"]},
+        {"e": "📜", "t": "Hace mucho tiempo, los incas _ grandes caminos", "o": ["construían", "construirán", "construyen"]}]),
+    _j("co-conect", "completar", "Palabras que unen ideas", "🔗", "🔗", 2, [
+        {"e": "🌧️", "t": "Me mojé _ estaba lloviendo", "o": ["porque", "pero", "y"]},
+        {"e": "🍦", "t": "Quería un helado _ no tenía plata", "o": ["pero", "porque", "entonces"]},
+        {"e": "🥪", "t": "Comí un sándwich _ una fruta", "o": ["y", "pero", "porque"]},
+        {"e": "😴", "t": "Tenía sueño, _ me fui a dormir", "o": ["entonces", "pero", "aunque"]},
+        {"e": "🧥", "t": "Hacía frío, _ me puse la campera", "o": ["así que", "pero", "aunque"]},
+        {"e": "📚", "t": "Primero leí el cuento y _ hice el dibujo", "o": ["después", "antes", "nunca"]}]),
+    _j("co-signos", "completar", "Signos de puntuación", "❓", "❗", 3, [
+        {"e": "❓", "t": "¿Cómo te llamás_", "o": ["?", ".", "!"]},
+        {"e": "❗", "t": "¡Qué lindo día_", "o": ["!", "?", ","]},
+        {"e": "🛒", "t": "Compré pan, leche_ queso y frutas", "o": [",", "?", "!"]},
+        {"e": "🎒", "t": "_Dónde está mi mochila?", "o": ["¿", "¡", "."]},
+        {"e": "🎉", "t": "_Feliz cumpleaños!", "o": ["¡", "¿", ","]},
+        {"e": "🌙", "t": "Ya es de noche_ Vamos a dormir", "o": [".", "?", ","]}]),
+    _j("co-texto", "completar", "Completo textos informativos", "📰", "🦙", 3, [
+        {"e": "🦙", "t": "La llama es un animal que vive en la _", "o": ["Puna", "playa", "selva"]},
+        {"e": "🌵", "t": "El cardón es una planta con muchas _", "o": ["espinas", "plumas", "ruedas"]},
+        {"e": "🌋", "t": "Un volcán puede largar lava muy _", "o": ["caliente", "fría", "dulce"]},
+        {"e": "🐝", "t": "Las abejas fabrican _ en la colmena", "o": ["miel", "leche", "pan"]},
+        {"e": "🌱", "t": "Para crecer, las semillas necesitan agua, tierra y _", "o": ["sol", "plástico", "sal"]},
+        {"e": "🦉", "t": "El búho caza de noche porque ve bien en la _", "o": ["oscuridad", "escuela", "lluvia"]}]),
+
+    # ---------------- Parecidas y opuestas ----------------
+    _j("op-fac", "opuestos", "Contrarios fáciles", "↔️", "🧼", 1, [
+        {"e": "⬆️", "p": "arriba", "r": "opuesto", "o": ["abajo", "alto", "encima"]},
+        {"e": "🐢", "p": "lento", "r": "opuesto", "o": ["rápido", "tortuga", "verde"]},
+        {"e": "🍬", "p": "dulce", "r": "opuesto", "o": ["salado", "rico", "azúcar"]},
+        {"e": "💧", "p": "mojado", "r": "opuesto", "o": ["seco", "agua", "limpio"]},
+        {"e": "🧼", "p": "limpio", "r": "opuesto", "o": ["sucio", "jabón", "nuevo"]},
+        {"e": "✨", "p": "nuevo", "r": "opuesto", "o": ["viejo", "lindo", "grande"]}]),
+    _j("op-mas", "opuestos", "Más contrarios", "🌗", "🌗", 1, [
+        {"e": "🔊", "p": "ruidoso", "r": "opuesto", "o": ["silencioso", "fuerte", "música"]},
+        {"e": "📏", "p": "largo", "r": "opuesto", "o": ["corto", "alto", "flaco"]},
+        {"e": "🌑", "p": "oscuro", "r": "opuesto", "o": ["claro", "negro", "noche"]},
+        {"e": "🏠", "p": "adentro", "r": "opuesto", "o": ["afuera", "casa", "arriba"]},
+        {"e": "🥶", "p": "invierno", "r": "opuesto", "o": ["verano", "frío", "nieve"]},
+        {"e": "😄", "p": "reír", "r": "opuesto", "o": ["llorar", "cantar", "sonreír"]}]),
+    _j("op-par1", "opuestos", "Palabras que se parecen", "🤝", "🤝", 1, [
+        {"e": "🚗", "p": "auto", "r": "parecido", "o": ["coche", "camión", "rueda"]},
+        {"e": "🧒", "p": "chico", "r": "parecido", "o": ["niño", "grande", "viejo"]},
+        {"e": "🏠", "p": "casa", "r": "parecido", "o": ["hogar", "calle", "puerta"]},
+        {"e": "😋", "p": "rico", "r": "parecido", "o": ["sabroso", "feo", "salado"]},
+        {"e": "👀", "p": "mirar", "r": "parecido", "o": ["ver", "oír", "dormir"]},
+        {"e": "😀", "p": "alegre", "r": "parecido", "o": ["feliz", "triste", "enojado"]}]),
+    _j("op-mix", "opuestos", "Opuestas y parecidas", "🔁", "🎁", 2, [
+        {"e": "🌅", "p": "comenzar", "r": "parecido", "o": ["empezar", "terminar", "dormir"]},
+        {"e": "😠", "p": "enojado", "r": "parecido", "o": ["furioso", "tranquilo", "feliz"]},
+        {"e": "🧺", "p": "poco", "r": "opuesto", "o": ["mucho", "nada", "chico"]},
+        {"e": "🐜", "p": "pequeño", "r": "parecido", "o": ["chiquito", "enorme", "rápido"]},
+        {"e": "🎁", "p": "dar", "r": "opuesto", "o": ["recibir", "regalar", "entregar"]},
+        {"e": "🏔️", "p": "subir", "r": "opuesto", "o": ["bajar", "trepar", "escalar"]}]),
+    _j("op-verb", "opuestos", "Acciones contrarias", "🔀", "💡", 2, [
+        {"e": "🚪", "p": "abrir", "r": "opuesto", "o": ["cerrar", "empujar", "entrar"]},
+        {"e": "💡", "p": "prender", "r": "opuesto", "o": ["apagar", "encender", "mirar"]},
+        {"e": "🛬", "p": "llegar", "r": "opuesto", "o": ["irse", "venir", "volver"]},
+        {"e": "🛏️", "p": "acostarse", "r": "opuesto", "o": ["levantarse", "dormir", "sentarse"]},
+        {"e": "🏆", "p": "ganar", "r": "opuesto", "o": ["perder", "jugar", "festejar"]},
+        {"e": "➕", "p": "sumar", "r": "opuesto", "o": ["restar", "contar", "agregar"]}]),
+    _j("op-sin", "opuestos", "Sinónimos", "🪞", "🧠", 2, [
+        {"e": "👩‍🏫", "p": "maestra", "r": "parecido", "o": ["docente", "alumna", "directora"]},
+        {"e": "😢", "p": "triste", "r": "parecido", "o": ["apenado", "alegre", "cansado"]},
+        {"e": "🐆", "p": "veloz", "r": "parecido", "o": ["rápido", "lento", "fuerte"]},
+        {"e": "🎁", "p": "regalar", "r": "parecido", "o": ["obsequiar", "comprar", "pedir"]},
+        {"e": "🧠", "p": "inteligente", "r": "parecido", "o": ["listo", "dormido", "alto"]},
+        {"e": "🏁", "p": "terminar", "r": "parecido", "o": ["finalizar", "empezar", "correr"]}]),
+    _j("op-dif", "opuestos", "Sinónimos y antónimos difíciles", "📚", "🌟", 3, [
+        {"e": "🏡", "p": "vivienda", "r": "parecido", "o": ["casa", "calle", "jardín"]},
+        {"e": "😱", "p": "temor", "r": "parecido", "o": ["miedo", "valor", "alegría"]},
+        {"e": "💰", "p": "caro", "r": "opuesto", "o": ["barato", "rico", "precio"]},
+        {"e": "🗺️", "p": "viajar", "r": "parecido", "o": ["recorrer", "quedarse", "dormir"]},
+        {"e": "🧹", "p": "ordenado", "r": "opuesto", "o": ["desordenado", "limpio", "prolijo"]},
+        {"e": "🌟", "p": "brillante", "r": "parecido", "o": ["luminoso", "oscuro", "apagado"]}]),
+    _j("op-pref", "opuestos", "Contrarios con in- y des-", "🔣", "🧩", 3, [
+        {"e": "😊", "p": "feliz", "r": "opuesto", "o": ["infeliz", "felicidad", "alegre"]},
+        {"e": "🧩", "p": "posible", "r": "opuesto", "o": ["imposible", "fácil", "probable"]},
+        {"e": "🎀", "p": "atar", "r": "opuesto", "o": ["desatar", "atrapar", "nudo"]},
+        {"e": "🛋️", "p": "cómodo", "r": "opuesto", "o": ["incómodo", "sillón", "blando"]},
+        {"e": "👕", "p": "vestir", "r": "opuesto", "o": ["desvestir", "ropa", "poner"]},
+        {"e": "✅", "p": "correcto", "r": "opuesto", "o": ["incorrecto", "bien", "perfecto"]}]),
+
+    # ---------------- ¿Con qué letra va? ----------------
+    _j("ot-ini", "ortografia", "¿Con qué letra empieza?", "🔠", "🐸", 1, [
+        {"e": "🐸", "p": "_ana", "o": ["r", "l", "m"]}, {"e": "🍎", "p": "_anzana", "o": ["m", "n", "p"]},
+        {"e": "🦆", "p": "_ato", "o": ["p", "t", "l"]}, {"e": "🐻", "p": "_so", "o": ["o", "a", "u"]},
+        {"e": "🌙", "p": "_una", "o": ["l", "t", "s"]}, {"e": "🍞", "p": "_an", "o": ["p", "d", "t"]}]),
+    _j("ot-voc", "ortografia", "La vocal que falta", "🅰️", "☀️", 1, [
+        {"e": "☀️", "p": "s_l", "o": ["o", "a", "u"]}, {"e": "🐱", "p": "g_to", "o": ["a", "o", "e"]},
+        {"e": "🌸", "p": "fl_r", "o": ["o", "a", "e"]}, {"e": "🐟", "p": "p_z", "o": ["e", "a", "i"]},
+        {"e": "🧀", "p": "qu_so", "o": ["e", "i", "a"]}, {"e": "🦶", "p": "p_e", "o": ["i", "a", "o"]}]),
+    _j("ot-fin", "ortografia", "¿Con qué letra termina?", "🔚", "🍯", 1, [
+        {"e": "🍞", "p": "pa_", "o": ["n", "l", "s"]}, {"e": "☀️", "p": "so_", "o": ["l", "n", "r"]},
+        {"e": "🌸", "p": "flo_", "o": ["r", "n", "s"]}, {"e": "🐟", "p": "pe_", "o": ["z", "s", "n"]},
+        {"e": "🍯", "p": "mie_", "o": ["l", "n", "r"]}, {"e": "🚂", "p": "tre_", "o": ["n", "s", "l"]}]),
+    _j("ot-que", "ortografia", "Ca, que, qui, co, cu", "🧀", "🦟", 2, [
+        {"e": "🧀", "p": "_eso", "o": ["qu", "c", "k"]}, {"e": "🏠", "p": "_asa", "o": ["c", "qu", "k"]},
+        {"e": "🌳", "p": "bos_e", "o": ["qu", "c", "k"]}, {"e": "🐄", "p": "va_a", "o": ["c", "qu", "k"]},
+        {"e": "🦟", "p": "mos_ito", "o": ["qu", "c", "k"]}, {"e": "🥥", "p": "_oco", "o": ["c", "qu", "k"]},
+        {"e": "🥄", "p": "_uchara", "o": ["c", "qu", "k"]}, {"e": "🏸", "p": "ra_eta", "o": ["qu", "c", "k"]}]),
+    _j("ot-gue", "ortografia", "Ga, gue, gui, go, gu", "🎸", "🎸", 2, [
+        {"e": "🎸", "p": "_itarra", "o": ["gu", "g", "j"]}, {"e": "🐱", "p": "_ato", "o": ["g", "gu", "j"]},
+        {"e": "💧", "p": "a_a", "o": ["gu", "g", "j"]}, {"e": "🔥", "p": "fue_o", "o": ["g", "gu", "j"]},
+        {"e": "🐛", "p": "_usano", "o": ["g", "gu", "j"]}, {"e": "🎁", "p": "re_alo", "o": ["g", "gu", "j"]},
+        {"e": "🍲", "p": "_iso", "o": ["gu", "g", "j"]}]),
+    _j("ot-mb", "ortografia", "Antes de p y b va m", "🏕️", "🥁", 2, [
+        {"e": "🏕️", "p": "ca_amento", "o": ["mp", "np"]}, {"e": "🎺", "p": "tro_eta", "o": ["mp", "np"]},
+        {"e": "🥁", "p": "ta_or", "o": ["mb", "nb"]}, {"e": "👒", "p": "so_rero", "o": ["mb", "nb"]},
+        {"e": "💡", "p": "lá_ara", "o": ["mp", "np"]}, {"e": "🔄", "p": "ca_iar", "o": ["mb", "nb"]},
+        {"e": "➕", "p": "ta_ién", "o": ["mb", "nb"]}, {"e": "🌾", "p": "ca_o", "o": ["mp", "np"]}]),
+    _j("ot-rr", "ortografia", "R o rr", "🐶", "🎸", 3, [
+        {"e": "🐭", "p": "_atón", "o": ["r", "rr"]}, {"e": "🍚", "p": "a_oz", "o": ["rr", "r"]},
+        {"e": "🌹", "p": "_osa", "o": ["r", "rr"]}, {"e": "⛰️", "p": "ce_o", "o": ["rr", "r"]},
+        {"e": "🍐", "p": "pe_a", "o": ["r", "rr"]}, {"e": "🏅", "p": "hon_a", "o": ["r", "rr"]},
+        {"e": "🚗", "p": "ca_o", "o": ["rr", "r"]}, {"e": "🎸", "p": "guita_a", "o": ["rr", "r"]}]),
+    _j("ot-aba", "ortografia", "Verbos con -aba", "📜", "💃", 3, [
+        {"e": "🎤", "p": "cant_", "o": ["aba", "ava"]}, {"e": "⚽", "p": "jug_", "o": ["aba", "ava"]},
+        {"e": "🏊", "p": "nad_", "o": ["aba", "ava"]}, {"e": "🎨", "p": "pint_", "o": ["aba", "ava"]},
+        {"e": "🚶", "p": "camin_", "o": ["aba", "ava"]}, {"e": "💃", "p": "bail_", "o": ["aba", "ava"]}]),
+
+    # ---------------- ¿Quién, cómo es o qué hace? ----------------
+    _j("cl-nombra", "clases", "¿Nombra algo o es una acción?", "🏷️", "🎤", 2, [
+        {"e": "🐱", "p": "gato", "c": "s", "t": "El gato duerme en el sillón"},
+        {"e": "🏃", "p": "corre", "c": "v", "t": "Juan corre en el recreo"},
+        {"e": "🌳", "p": "árbol", "c": "s", "t": "El árbol tiene muchas hojas"},
+        {"e": "🍽️", "p": "come", "c": "v", "t": "Ana come fideos con queso"},
+        {"e": "⚽", "p": "pelota", "c": "s", "t": "La pelota quedó en el patio"},
+        {"e": "🎨", "p": "pinta", "c": "v", "t": "Lucas pinta un sol amarillo"},
+        {"e": "🏠", "p": "casa", "c": "s", "t": "Mi casa tiene un jardín"},
+        {"e": "🎤", "p": "canta", "c": "v", "t": "Mi tía canta muy lindo"}]),
+    _j("cl-desc", "clases", "Palabras que describen", "🎨", "🌈", 2, [
+        {"e": "🌹", "p": "roja", "c": "a", "t": "La rosa es roja"},
+        {"e": "🐘", "p": "elefante", "c": "s", "t": "El elefante toma agua"},
+        {"e": "🍦", "p": "frío", "c": "a", "t": "El helado está frío"},
+        {"e": "🐶", "p": "cachorro", "c": "s", "t": "El cachorro mueve la cola"},
+        {"e": "😴", "p": "cansado", "c": "a", "t": "Papá llegó cansado del trabajo"},
+        {"e": "🍫", "p": "rico", "c": "a", "t": "El chocolate es muy rico"},
+        {"e": "🌈", "p": "arcoíris", "c": "s", "t": "Después de la lluvia salió un arcoíris"},
+        {"e": "🐸", "p": "verde", "c": "a", "t": "La rana es verde"}]),
+    _j("cl-ani", "clases", "Animales: quién, cómo es, qué hace", "🐾", "🦁", 2, [
+        {"e": "🐦", "p": "vuela", "c": "v", "t": "El pájaro vuela alto"},
+        {"e": "🐟", "p": "pez", "c": "s", "t": "El pez nada en la pecera"},
+        {"e": "🐰", "p": "blanco", "c": "a", "t": "Tengo un conejo blanco"},
+        {"e": "🐄", "p": "muge", "c": "v", "t": "La vaca muge en el campo"},
+        {"e": "🐌", "p": "caracol", "c": "s", "t": "El caracol lleva su casa"},
+        {"e": "🦁", "p": "valiente", "c": "a", "t": "El león es valiente"},
+        {"e": "🐝", "p": "zumba", "c": "v", "t": "La abeja zumba entre las flores"},
+        {"e": "🦒", "p": "alta", "c": "a", "t": "La jirafa es muy alta"}]),
+    _j("cl-esc", "clases", "Palabras de la escuela", "🏫", "🔔", 2, [
+        {"e": "📚", "p": "libro", "c": "s", "t": "Saqué un libro de la biblioteca"},
+        {"e": "✏️", "p": "escribe", "c": "v", "t": "Martina escribe su nombre"},
+        {"e": "🎒", "p": "pesada", "c": "a", "t": "Mi mochila está pesada"},
+        {"e": "👩‍🏫", "p": "maestra", "c": "s", "t": "La maestra explica la tarea"},
+        {"e": "📖", "p": "lee", "c": "v", "t": "El grupo lee un cuento"},
+        {"e": "🖍️", "p": "colorido", "c": "a", "t": "Hicimos un mural colorido"},
+        {"e": "🔔", "p": "suena", "c": "v", "t": "El timbre suena fuerte"},
+        {"e": "🪑", "p": "silla", "c": "s", "t": "Cada chico tiene su silla"}]),
+    _j("cl-orac", "clases", "Clasifico palabras de una oración", "🔍", "🏔️", 3, [
+        {"e": "🌧️", "p": "lluvia", "c": "s", "t": "La lluvia mojó todo el patio"},
+        {"e": "🌧️", "p": "mojó", "c": "v", "t": "La lluvia mojó todo el patio"},
+        {"e": "🏔️", "p": "nevado", "c": "a", "t": "El cerro nevado brilla al sol"},
+        {"e": "🏔️", "p": "brilla", "c": "v", "t": "El cerro nevado brilla al sol"},
+        {"e": "🎻", "p": "música", "c": "s", "t": "La música suave me da sueño"},
+        {"e": "🎻", "p": "suave", "c": "a", "t": "La música suave me da sueño"},
+        {"e": "🧑‍🍳", "p": "cocina", "c": "v", "t": "El abuelo cocina locro los domingos"},
+        {"e": "🍲", "p": "locro", "c": "s", "t": "El abuelo cocina locro los domingos"}]),
+    _j("cl-prop", "clases", "Nombres de lugares y personas", "🏙️", "🗺️", 3, [
+        {"e": "🗺️", "p": "Jujuy", "c": "s", "t": "Vivo en la provincia de Jujuy"},
+        {"e": "⛰️", "p": "Humahuaca", "c": "s", "t": "Humahuaca está en la quebrada"},
+        {"e": "👧", "p": "Martina", "c": "s", "t": "Martina es mi prima"},
+        {"e": "🏙️", "p": "ciudad", "c": "s", "t": "La ciudad tiene muchas calles"},
+        {"e": "🌄", "p": "hermosa", "c": "a", "t": "Purmamarca es hermosa"},
+        {"e": "🚌", "p": "visitamos", "c": "v", "t": "Visitamos Tilcara en las vacaciones"},
+        {"e": "🏞️", "p": "río", "c": "s", "t": "El río Grande baja del cerro"},
+        {"e": "🎒", "p": "viajó", "c": "v", "t": "Tomás viajó a Salta"}]),
+    _j("cl-tiempo", "clases", "Acciones de ayer, hoy y mañana", "⏳", "🎶", 3, [
+        {"e": "🎶", "p": "cantaba", "c": "v", "t": "Mi abuela cantaba coplas"},
+        {"e": "🎶", "p": "coplas", "c": "s", "t": "Mi abuela cantaba coplas"},
+        {"e": "⚽", "p": "jugaremos", "c": "v", "t": "Mañana jugaremos al fútbol"},
+        {"e": "🏚️", "p": "antigua", "c": "a", "t": "Es una casa muy antigua"},
+        {"e": "🥾", "p": "caminamos", "c": "v", "t": "Ayer caminamos por el cerro"},
+        {"e": "⛰️", "p": "cerro", "c": "s", "t": "Ayer caminamos por el cerro"},
+        {"e": "🏞️", "p": "tranquilo", "c": "a", "t": "El río está tranquilo"},
+        {"e": "🌅", "p": "amanece", "c": "v", "t": "En verano amanece temprano"}]),
+    _j("cl-faro", "clases", "Palabras de «El faro de Martina»", "📖", "💡", 3, [
+        {"e": "💡", "p": "faro", "c": "s", "t": "El abuelo encendía el faro"},
+        {"e": "💡", "p": "encendía", "c": "v", "t": "El abuelo encendía el faro"},
+        {"e": "⛈️", "p": "fuerte", "c": "a", "t": "Esa noche hubo una tormenta fuerte"},
+        {"e": "⛈️", "p": "tormenta", "c": "s", "t": "Esa noche hubo una tormenta fuerte"},
+        {"e": "🤲", "p": "temblorosas", "c": "a", "t": "Con las manos temblorosas giró la llave"},
+        {"e": "🔑", "p": "giró", "c": "v", "t": "Con las manos temblorosas giró la llave"},
+        {"e": "🚢", "p": "barco", "c": "s", "t": "El barco llegó al puerto"},
+        {"e": "🚢", "p": "llegó", "c": "v", "t": "El barco llegó al puerto"}]),
+]
+
+# Textos que no son cuentos (NAP: adivinanzas, instructivos, notas de enciclopedia y poesía)
+CUENTOS += [
+    _c("adivina", "Adivinanzas", "❓", "🐰", 1,
+       "Adivinanza uno. Tengo orejas largas, salto sin parar y como zanahorias. ¿Quién soy? "
+       "Adivinanza dos. Brillo en el cielo durante el día y doy calor. ¿Quién soy? "
+       "Adivinanza tres. Tengo hojas, pero no soy árbol. Tengo letras y dibujos adentro. ¿Qué soy?",
+       [{"t": "e", "tema": "inferencia", "p": "¿Quién es el de la adivinanza uno?", "o": ["El conejo", "El perro", "El pez"]},
+        {"t": "e", "tema": "detalles", "p": "¿Qué come el animal de la adivinanza uno?", "o": ["Zanahorias", "Carne", "Semillas"]},
+        {"t": "e", "tema": "inferencia", "p": "¿Qué es la adivinanza dos?", "o": ["El sol", "La luna", "Una lámpara"]},
+        {"t": "vf", "tema": "detalles", "p": "La adivinanza dos habla de algo que brilla de noche.", "v": False},
+        {"t": "e", "tema": "inferencia", "p": "¿Qué es la adivinanza tres?", "o": ["Un libro", "Un árbol", "Una flor"]},
+        {"t": "e", "tema": "vocabulario", "p": "En la adivinanza tres, ¿qué son las «hojas»?", "o": ["Las páginas del libro", "Las hojas de una planta", "Hojas secas del otoño"]}]),
+    _c("limonada", "Cómo hacer limonada", "🍋", "🥤", 2,
+       "Para hacer limonada necesitás: tres limones, un litro de agua fría, cuatro cucharadas de azúcar y una jarra. "
+       "Primero, pedile a un adulto que corte los limones por la mitad. Después, exprimí los limones y echá el jugo en la jarra. "
+       "Luego, agregá el agua y el azúcar. Revolvé con una cuchara larga hasta que el azúcar se disuelva. "
+       "Por último, serví la limonada en vasos. ¡Lista para tomar!",
+       [{"t": "e", "tema": "detalles", "p": "¿Cuántos limones se necesitan?", "o": ["Tres", "Diez", "Uno"]},
+        {"t": "e", "tema": "personajes", "p": "¿Quién tiene que cortar los limones?", "o": ["Un adulto", "Los chicos solos", "Nadie"]},
+        {"t": "e", "tema": "vocabulario", "p": "El azúcar se «disuelve». ¿Qué quiere decir?", "o": ["Que se mezcla con el agua y deja de verse", "Que se quema", "Que se vuelve sal"]},
+        {"t": "vf", "tema": "detalles", "p": "La limonada se hace con agua caliente.", "v": False},
+        {"t": "e", "tema": "inferencia", "p": "¿Para qué sirve este texto?", "o": ["Para explicar cómo hacer algo", "Para contar una historia de miedo", "Para vender limones"]},
+        {"t": "o", "tema": "secuencia", "items": ["🔪 Un adulto corta los limones.", "🍋 Se exprimen los limones en la jarra.", "🥄 Se agregan el agua y el azúcar y se revuelve.", "🥤 Se sirve la limonada en vasos."]}]),
+    _c("llama", "La llama de la Puna", "🦙", "🦙", 2,
+       "La llama es un animal de la Puna y de la Quebrada de Humahuaca. Vive en lugares altos y fríos, donde hay poca agua. "
+       "Tiene el cuello largo, las orejas puntiagudas y un pelaje grueso y suave. Con su lana, las familias tejen ponchos, medias y frazadas. "
+       "La llama come pasto y hierbas. Es un animal tranquilo, pero si se enoja, ¡puede escupir! "
+       "Desde hace muchísimos años, las llamas ayudan a las personas a llevar cargas por los caminos de montaña.",
+       [{"t": "e", "tema": "personajes", "p": "¿De qué animal habla el texto?", "o": ["De la llama", "Del cóndor", "Del caballo"]},
+        {"t": "e", "tema": "lugar", "p": "¿Dónde vive la llama?", "o": ["En lugares altos y fríos", "En el mar", "En la selva"]},
+        {"t": "e", "tema": "detalles", "p": "¿Qué se hace con su lana?", "o": ["Ponchos, medias y frazadas", "Zapatos y gorras", "Pan y queso"]},
+        {"t": "e", "tema": "vocabulario", "p": "Las orejas son «puntiagudas». ¿Qué quiere decir?", "o": ["Que terminan en punta", "Que son muy chiquitas", "Que son redondas"]},
+        {"t": "vf", "tema": "detalles", "p": "La llama come carne.", "v": False},
+        {"t": "e", "tema": "emociones", "p": "¿Cómo es la llama casi siempre?", "o": ["Tranquila", "Enojada", "Asustada"]},
+        {"t": "e", "tema": "inferencia", "p": "¿Por qué la llama tiene un pelaje grueso?", "o": ["Porque vive en lugares fríos", "Porque le gusta nadar", "Porque es muy rápida"]}]),
+    _c("coplas", "Coplas de la Quebrada", "🎶", "🪕", 3,
+       "Desde el cerro de colores baja el viento a saludar, trae el canto de los pájaros y el aroma del maizal. "
+       "La llamita de la Puna camina sin apurar, lleva lana sobre el lomo para el poncho de mamá. "
+       "Con la caja y con el erque se alegra todo el lugar: en febrero, el carnaval nos invita a bailar.",
+       [{"t": "e", "tema": "personajes", "p": "¿Qué animal aparece en la segunda copla?", "o": ["La llamita", "El cóndor", "El caballo"]},
+        {"t": "e", "tema": "lugar", "p": "¿Desde dónde baja el viento?", "o": ["Desde el cerro de colores", "Desde el mar", "Desde la ciudad"]},
+        {"t": "e", "tema": "detalles", "p": "¿Para qué es la lana que lleva la llamita?", "o": ["Para el poncho de mamá", "Para una almohada", "Para vender en la feria"]},
+        {"t": "e", "tema": "vocabulario", "p": "Según la copla, ¿qué es el «erque»?", "o": ["Un instrumento musical", "Una comida", "Un animal"]},
+        {"t": "e", "tema": "emociones", "p": "¿Cómo está el lugar en la tercera copla?", "o": ["Alegre", "Triste", "Silencioso"]},
+        {"t": "vf", "tema": "lugar", "p": "El carnaval de la copla es en febrero.", "v": True},
+        {"t": "e", "tema": "inferencia", "p": "¿Por qué el viento trae «el aroma del maizal»?", "o": ["Porque pasa por donde crece el maíz", "Porque cocina choclos", "Porque viene del mar"]}]),
+]
+
+
+# Actividades que usan el juego de completar pero trabajan otro tema (campo «tema»).
+# «pregunta»: reemplaza a «¿Qué palabra falta?» en la pantalla y en la voz.
+# «minusculas»: se muestran tal cual aunque 1.º grado use IMPRENTA MAYÚSCULA (si no, no se verían las mayúsculas).
+JUEGOS += [
+    {**_j("co-mayus", "completar", "¿Mayúscula o minúscula?", "🔠", "🗺️", 2, [
+        {"e": "🐕", "t": "Mi perra se llama _", "o": ["Luna", "luna"]},
+        {"e": "🗺️", "t": "Vivo en la provincia de _", "o": ["Jujuy", "jujuy"]},
+        {"e": "📅", "t": "_ fuimos al río con mi familia", "o": ["Ayer", "ayer"]},
+        {"e": "👧", "t": "Mi amiga _ vive en Tilcara", "o": ["Sofía", "sofía"]},
+        {"e": "❄️", "t": "En invierno hace mucho _", "o": ["frío", "Frío"]},
+        {"e": "🐱", "t": "Me gusta jugar con mi _", "o": ["gato", "Gato"]},
+        {"e": "🏙️", "t": "La capital de la Argentina es _", "o": ["Buenos Aires", "buenos aires"]},
+        {"e": "🍞", "t": "Compramos pan. _ volvimos a casa", "o": ["Después", "después"]}]),
+     "tema": "ortografia", "minusculas": True, "pregunta": "¿Con mayúscula o con minúscula?"},
+    {**_j("co-tonica", "completar", "¿Qué sílaba suena más fuerte?", "📢", "📢", 3, [
+        {"e": "⚽", "t": "En pe-lo-ta suena más fuerte _", "o": ["lo", "pe", "ta"]},
+        {"e": "🍎", "t": "En man-za-na suena más fuerte _", "o": ["za", "man", "na"]},
+        {"e": "☕", "t": "En ca-fé suena más fuerte _", "o": ["fé", "ca"]},
+        {"e": "🌳", "t": "En ár-bol suena más fuerte _", "o": ["ár", "bol"]},
+        {"e": "🐭", "t": "En ra-tón suena más fuerte _", "o": ["tón", "ra"]},
+        {"e": "🦋", "t": "En ma-ri-po-sa suena más fuerte _", "o": ["po", "ri", "sa"]},
+        {"e": "🦇", "t": "En mur-cié-la-go suena más fuerte _", "o": ["cié", "mur", "go"]},
+        {"e": "🏠", "t": "En ca-sa suena más fuerte _", "o": ["ca", "sa"]}]),
+     "tema": "acentuacion", "pregunta": "¿Qué sílaba suena más fuerte?"},
+    {**_j("co-tilde", "completar", "¿Con tilde o sin tilde?", "✍️", "✈️", 3, [
+        {"e": "✈️", "t": "El _ vuela sobre las nubes", "o": ["avión", "avion"]},
+        {"e": "🐭", "t": "El _ se comió el queso", "o": ["ratón", "raton"]},
+        {"e": "🌳", "t": "Me subí a un _ muy alto", "o": ["árbol", "arbol"]},
+        {"e": "🍋", "t": "Le puse jugo de _ al agua", "o": ["limón", "limon"]},
+        {"e": "🏠", "t": "Mi _ tiene un patio grande", "o": ["casa", "cása"]},
+        {"e": "🎵", "t": "Escuchamos _ en el recreo", "o": ["música", "musica"]},
+        {"e": "👩‍🏫", "t": "La maestra escribe en el _", "o": ["pizarrón", "pizarron"]},
+        {"e": "📚", "t": "Leímos un _ de dinosaurios", "o": ["libro", "líbro"]}]),
+     "tema": "acentuacion", "pregunta": "¿Cómo se escribe: con tilde o sin tilde?"},
+    {**_j("co-familia", "completar", "Familias de palabras", "🌳", "🍞", 2, [
+        {"e": "🍞", "t": "Pan, panadero, panadería y _", "o": ["panera", "pantalón", "manzana"]},
+        {"e": "🌸", "t": "Flor, florero, florería y _", "o": ["florcita", "foto", "fiesta"]},
+        {"e": "🐟", "t": "Pez, pecera, pescado y _", "o": ["pescador", "pelota", "perro"]},
+        {"e": "🌊", "t": "Mar, marinero, marino y _", "o": ["marea", "mariposa", "martes"]},
+        {"e": "📚", "t": "Libro, librería, librero y _", "o": ["librito", "liebre", "lima"]},
+        {"e": "🌳", "t": "Árbol, arbolito y _", "o": ["arboleda", "árbitro", "arroz"]}]),
+     "tema": "familias"},
+    {**_j("co-dimin", "completar", "Chiquitos y grandotes", "🐘", "🐭", 2, [
+        {"e": "🐶", "t": "Un perro muy chiquito es un _", "o": ["perrito", "perrazo", "perrera"]},
+        {"e": "🏠", "t": "Una casa muy grande es un _", "o": ["casón", "casita", "casero"]},
+        {"e": "🐱", "t": "Un gato bebé es un _", "o": ["gatito", "gatote", "gatear"]},
+        {"e": "🎈", "t": "Un globo enorme es un _", "o": ["globote", "globito", "globero"]},
+        {"e": "🌸", "t": "Una flor chiquita es una _", "o": ["florcita", "florota", "florero"]},
+        {"e": "👟", "t": "Una patada muy fuerte es un _", "o": ["patadón", "patita", "patito"]}]),
+     "tema": "familias"},
+]
+
+
+# ---------------------------------------------------------------
+# «Escribo»: consignas de escritura (producción escrita, NAP)
+#   min = cantidad mínima de palabras para poder enviar
+#   Los textos los lee y los devuelve la docente desde el panel (sección «Escritos»).
+# ---------------------------------------------------------------
+def _w(id, titulo, e, nivel, consigna, minimo):
+    return {"id": id, "titulo": titulo, "e": e, "nivel": nivel, "consigna": consigna, "min": minimo, "base": True}
+
+CONSIGNAS = [
+    _w("esc-nombre", "Me presento", "👋", 1, "Escribí tu nombre y algo que te guste hacer.", 3),
+    _w("esc-mascota", "Mi animal favorito", "🐶", 1, "Escribí cuál es tu animal favorito y cómo es.", 3),
+    _w("esc-cartel", "Un cartel para el aula", "📋", 1, "Escribí un cartel para la puerta del aula. Por ejemplo: «Bienvenidos a primer grado».", 2),
+    _w("esc-bobi", "¿Qué encontró Bobi?", "⚽", 1, "Leíste «Bobi y la pelota». Escribí qué encontró Bobi en el jardín y qué hizo después.", 4),
+    _w("esc-final", "Otro final para Tita", "🐢", 2, "Inventá otro final para el cuento «Tita va a la escuela». Empezá con mayúscula y terminá con punto.", 10),
+    _w("esc-invitacion", "Una invitación", "🎉", 2, "Escribí una invitación para tu cumpleaños: a quién invitás, qué día, a qué hora y dónde es la fiesta.", 10),
+    _w("esc-receta", "Mi receta favorita", "🍳", 2, "Escribí los pasos para preparar algo rico. Usá palabras como «primero», «después» y «por último».", 12),
+    _w("esc-describo", "Describo un animal", "🦙", 2, "Elegí un animal y describilo: cómo es, dónde vive y qué come.", 12),
+    _w("esc-carta", "Una carta para alguien especial", "✉️", 3, "Escribí una carta a alguien que quieras. Acordate del saludo, de lo que le querés contar y de la despedida.", 25),
+    _w("esc-cuento", "Mi propio cuento", "📖", 3, "Inventá un cuento corto con un personaje, un problema y un final. Usá mayúsculas y puntos.", 30),
+    _w("esc-faro", "Renarro «El faro de Martina»", "💡", 3, "Contá con tus palabras qué pasó en «El faro de Martina», en orden: el principio, el problema y el final.", 25),
+    _w("esc-noticia", "Una noticia de la escuela", "📰", 3, "Escribí una noticia sobre algo que pasó en tu escuela: qué pasó, cuándo, dónde y quiénes participaron.", 25),
+]
+CONSIGNAS_POR_ID = {c["id"]: c for c in CONSIGNAS}
+
+# Frases rápidas para la devolución de la docente
+DEVOLUCIONES_RAPIDAS = ["¡Muy bien escrito! 👏", "Me encantó tu idea. 💡", "Revisá las mayúsculas al empezar.",
+                        "Acordate del punto al terminar cada oración.", "Separá bien las palabras.",
+                        "Contá un poquito más: ¿qué pasó después?", "Usá palabras como «primero», «después» y «al final»."]
+
+
 ACTIVIDADES_BASE = CUENTOS + JUEGOS
 
 # ---------------------------------------------------------------
@@ -393,6 +916,7 @@ MEDALLAS = [
         ("rimas", "Poesía de la isla", "🎵"), ("escritura", "Letra estrella", "✏️"),
         ("silabas", "Palmas de oro", "👏"), ("completar", "Detective de oraciones", "📌"),
         ("sinonimos", "Magia de las palabras", "🔄"), ("ortografia", "Escudo de la ortografía", "🖍️"),
+        ("familias", "Árbol de palabras", "🌳"), ("acentuacion", "Oído de oro", "📢"),
         ("clases", "Etiquetas expertas", "🏷️"),
     ]
 ]

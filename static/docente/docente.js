@@ -4,7 +4,7 @@
 "use strict";
 
 let CAT = null, YO = null;
-const UI = {buscar: "", grado: "", claves: false, tareasTab: "activas", actFiltro: "", tab: {}};
+const UI = {buscar: "", grado: "", claves: false, tareasTab: "activas", escritosTab: "pendiente", actFiltro: "", tab: {}};
 let BORRADOR = null;
 
 /* ---------------- Íconos ---------------- */
@@ -25,6 +25,7 @@ const IC = {
   libro: '<path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>',
   check: '<polyline points="20 6 9 17 4 12"/>',
   lupa: '<circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>',
+  lapiz: '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/>',
 };
 const ic = (k, cls = "") => `<svg viewBox="0 0 24 24" class="${cls}" aria-hidden="true">${IC[k]}</svg>`;
 
@@ -64,16 +65,16 @@ async function llamar(fn, okMsg) {
 
 /* ---------------- Estructura de la página ---------------- */
 const NAV = [["panel", "Panel general", "panel"], ["alumnos", "Alumnos", "alumnos"], ["tareas", "Misiones", "tareas"],
-             ["cuentos", "Cuentos", "libro"], ["actividades", "Actividades", "actividades"], ["temas", "Temas y contenidos", "temas"], ["ajustes", "Ajustes", "ajustes"]];
+             ["escritos", "Escritos", "lapiz"], ["cuentos", "Cuentos", "libro"], ["actividades", "Actividades", "actividades"], ["temas", "Temas y contenidos", "temas"], ["ajustes", "Ajustes", "ajustes"]];
 function shell(seccion, titulo, cuerpo, {migas = "", acciones = ""} = {}) {
   return `<div class="shell">
     <aside class="side">
       <div class="marca"><div class="logo">🏝️</div><div><b>Isla de los Cuentos</b><small>Panel docente</small></div></div>
       <nav class="nav" aria-label="Secciones">
         <div class="sep">Seguimiento</div>
-        ${NAV.slice(0, 3).map(([r, t, i]) => `<a href="#/${r}" class="${seccion === r ? "on" : ""}">${ic(i)}${t}</a>`).join("")}
+        ${NAV.slice(0, 4).map(([r, t, i]) => `<a href="#/${r}" class="${seccion === r ? "on" : ""}">${ic(i)}${t}</a>`).join("")}
         <div class="sep">Contenidos</div>
-        ${NAV.slice(3).map(([r, t, i]) => `<a href="#/${r}" class="${seccion === r ? "on" : ""}">${ic(i)}${t}</a>`).join("")}
+        ${NAV.slice(4).map(([r, t, i]) => `<a href="#/${r}" class="${seccion === r ? "on" : ""}">${ic(i)}${t}</a>`).join("")}
         <div class="sep">Juego</div>
         <a href="/" target="_blank" rel="noopener">${ic("juego")}Abrir el juego</a>
       </nav>
@@ -126,7 +127,7 @@ async function navegar() {
   const rutas = {panel: pPanel, alumnos: pAlumnos, alumno: () => pAlumno(a, b), tarjetas: pTarjetas,
                  tareas: pTareas, tarea: () => pTarea(a), "tarea-nueva": pTareaNueva,
                  cuentos: pCuentos, actividades: pActividades, actividad: () => pActividad(a), "actividad-nueva": () => pEditor(a, null),
-                 "actividad-editar": () => pEditor(null, a), temas: pTemas, ajustes: pAjustes};
+                 "actividad-editar": () => pEditor(null, a), temas: pTemas, ajustes: pAjustes, escritos: pEscritos};
   try { await (rutas[r] || pPanel)(); }
   catch (e) {
     if (e.status === 401) { YO = null; return navegar(); }
@@ -286,7 +287,7 @@ async function pPanel() {
   const d = await api("/api/docente/resumen");
   const k = d.kpis;
   const temasOn = d.temas;
-  const cuerpo = `
+  const cuerpo = `${d.escritos_pendientes ? `<a class="aviso-escritos" href="#/escritos">${ic("lapiz")}<span><b>${d.escritos_pendientes} ${d.escritos_pendientes === 1 ? "escrito espera" : "escritos esperan"} tu devolución.</b> Los chicos escribieron en «Escribo».</span><span class="btn chico">Revisar</span></a>` : ""}
   <div class="kpis">
     <div class="kpi"><div class="l">Alumnos activos</div><div class="v">${k.alumnos}</div><div class="s"><a href="#/alumnos">Ver la lista</a></div></div>
     <div class="kpi"><div class="l">Actividades · últimos 7 días</div><div class="v">${k.semana}</div><div class="s">cuentos y juegos terminados</div></div>
@@ -360,7 +361,7 @@ async function pTarjetas() {
 
 async function pAlumno(id, tab = "evolucion") {
   const a = await api("/api/docente/alumnos/" + id);
-  const tabs = [["evolucion", "Evolución"], ["temas", "Por tema"], ["historial", "Historial"], ["tareas", "Misiones"], ["observaciones", `Observaciones (${a.observaciones.length})`], ["acceso", "Acceso y datos"]];
+  const tabs = [["evolucion", "Evolución"], ["temas", "Por tema"], ["historial", "Historial"], ["tareas", "Misiones"], ["escritos", `Escritos (${a.escritos.length})`], ["observaciones", `Observaciones (${a.observaciones.length})`], ["acceso", "Acceso y datos"]];
   let panel = "";
   if (tab === "evolucion") {
     const s = a.semanas;
@@ -395,6 +396,9 @@ async function pAlumno(id, tab = "evolucion") {
     panel = `<section class="panel"><div class="panel-b sin">${a.tareas.length ? `<table><thead><tr><th>Misión</th><th>Fecha límite</th><th>Avance</th><th>Estado</th></tr></thead><tbody>
       ${a.tareas.map(t => `<tr><td><b>${esc(t.titulo)}</b></td><td>${t.fecha_limite ? fechaCorta(t.fecha_limite) : "—"}</td><td class="num">${t.hechas}/${t.total} actividades</td><td><span class="estado ${t.tarde ? "e-warn" : cls[t.estado]}">${t.estado === "entregada" ? (t.tarde ? "Terminada fuera de término " : "Terminada ") + fechaCorta(t.entregada) : t.estado === "vencida" ? "Vencida" : "Pendiente"}</span></td></tr>`).join("")}
       </tbody></table>` : vacio("No tiene misiones asignadas")}</div></section>`;
+  } else if (tab === "escritos") {
+    panel = `<section class="panel"><div class="panel-b">${a.escritos.length ? a.escritos.map(e => tarjetaEscrito(e, false)).join("")
+      : vacio("Todavía no escribió nada", "Los chicos escriben desde la zona «Escribo ✍️» de la isla.")}</div></section>`;
   } else if (tab === "observaciones") {
     panel = `<div class="grid g-7-5"><section class="panel"><div class="panel-h"><h2>Registro de observaciones</h2></div><div class="panel-b">
       ${a.observaciones.length ? a.observaciones.map(o => `<div class="obs"><div class="f"><span>${fechaHora(o.fecha)}</span><button class="btn fantasma chico" data-act="borrarObs" data-id="${o.id}" data-al="${a.id}">Borrar</button></div><p>${esc(o.texto)}</p></div>`).join("")
@@ -752,6 +756,63 @@ function payloadActividad() {
 /* =========================================================
    Temas y ajustes
    ========================================================= */
+/* =========================================================
+   Escritos (producción escrita de los chicos)
+   ========================================================= */
+let ESC = null;
+function tarjetaEscrito(e, conAlumno = true) {
+  const est = e.estado === "revisado"
+    ? `<span class="estado e-ok">Revisado ${e.estrellas ? "★".repeat(e.estrellas) : ""}</span>` : `<span class="estado e-warn">Para revisar</span>`;
+  return `<article class="escrito" id="esc-${e.id}">
+    <div class="escrito-cab">${conAlumno ? `<a href="#/alumno/${e.alumno.id}/escritos">${persona(e.alumno, 30)}</a><span class="muted">${e.alumno.grado}.º</span>` : ""}
+      <span><b>${e.e} ${esc(e.consigna)}</b></span><span class="muted" style="margin-left:auto">${fechaHora(e.fecha)} · ${e.palabras} palabras</span>${est}</div>
+    <div class="escrito-texto">${esc(e.texto)}</div>
+    ${e.estado === "revisado" ? `<div class="escrito-dev"><b>Tu devolución:</b> ${esc(e.devolucion || "(solo estrellas)")}${conAlumno ? ` <button class="btn fantasma chico" data-act="editarDevolucion" data-id="${e.id}">Editar</button>` : ""}</div>` : ""}
+    ${conAlumno && e.estado !== "revisado" ? formDevolucion(e) : ""}
+  </article>`;
+}
+function formDevolucion(e) {
+  return `<form class="escrito-form" data-form="devolucion" data-id="${e.id}">
+    <div class="estrellas-elegir" role="radiogroup" aria-label="Estrellas">${[1, 2, 3].map(n => `<label><input type="radio" name="estrellas" value="${n}" ${n === (e.estrellas || 0) ? "checked" : ""} required><span>${"★".repeat(n)}</span></label>`).join("")}</div>
+    <textarea name="devolucion" maxlength="600" placeholder="Escribile algo al chico: qué hizo bien y qué puede mejorar…">${esc(e.devolucion || "")}</textarea>
+    <div class="rapidas">${(ESC ? ESC.rapidas : []).map(t => `<button type="button" class="tag" data-act="frase" data-t="${esc(t)}">${esc(t)}</button>`).join("")}</div>
+    <div class="acciones"><button class="btn" type="submit">Enviar devolución</button><span class="muted" style="font-size:12.5px">El chico la ve en «Escribo» y gana 5 🪙 por cada estrella.</span></div>
+  </form>`;
+}
+async function pEscritos() {
+  ESC = await api("/api/docente/escritos");
+  const pend = ESC.escritos.filter(e => e.estado !== "revisado"), rev = ESC.escritos.filter(e => e.estado === "revisado");
+  const tab = UI.escritosTab;
+  let lista;
+  if (tab === "consignas") {
+    lista = `<section class="panel"><div class="panel-h"><h2>Consignas de escritura</h2><span class="muted" style="font-size:12.5px">Cada grado ve las de su nivel</span></div>
+      <div class="panel-b sin"><table><thead><tr><th>Consigna</th><th>Nivel</th><th class="r">Mínimo</th><th class="r">Escritos</th><th></th></tr></thead><tbody>
+      ${ESC.consignas.map(c => `<tr><td><b>${c.e} ${esc(c.titulo)}</b><div class="muted" style="font-size:12.5px">${esc(c.consigna)}</div></td><td>Nivel ${c.nivel}</td>
+        <td class="r num">${c.min} palabras</td><td class="r num">${c.escritos}</td>
+        <td class="r">${c.base ? `<span class="muted" style="font-size:12px">Incluida</span>` : `<button class="btn peligro chico" data-act="borrarConsigna" data-id="${c.id}">Borrar</button>`}</td></tr>`).join("")}
+      </tbody></table></div></section>
+      <section class="panel"><div class="panel-h"><h2>Nueva consigna</h2></div><form class="panel-b" data-form="consigna">
+        <div class="f2"><div class="campo"><label>Título</label><input type="text" name="titulo" maxlength="60" required placeholder="Ej.: Mi fin de semana"></div>
+        <div class="campo"><label>Dibujo (emoji)</label><input type="text" name="e" maxlength="12" placeholder="✍️"></div></div>
+        <div class="campo"><label>Consigna para los chicos</label><textarea name="consigna" maxlength="400" required placeholder="Ej.: Contá qué hiciste el fin de semana. Usá mayúsculas y puntos."></textarea><small>Los chicos la pueden escuchar en voz alta.</small></div>
+        <div class="f2"><div class="campo"><label>Nivel</label><select name="nivel"><option value="1">Nivel 1 (1.º grado)</option><option value="2">Nivel 2 (2.º grado)</option><option value="3">Nivel 3 (3.º grado)</option></select></div>
+        <div class="campo"><label>Mínimo de palabras</label><input type="number" name="min" min="1" max="200" value="10" required></div></div>
+        <div class="error-form" id="err"></div><button class="btn" type="submit">Agregar consigna</button></form></section>`;
+  } else {
+    const l = tab === "revisado" ? rev : pend;
+    lista = l.length ? l.map(e => tarjetaEscrito(e)).join("")
+      : `<section class="panel">${vacio(tab === "revisado" ? "Todavía no revisaste escritos" : "No hay escritos para revisar", "Los chicos escriben desde la zona «Escribo ✍️» de la isla.")}</section>`;
+  }
+  const cuerpo = `
+  <div class="ayuda"><b>Producción escrita.</b> En la zona «Escribo» los chicos escriben con sus palabras a partir de una consigna. Acá los leés, les ponés de 1 a 3 estrellas y les dejás una devolución. Ellos la ven en el juego y pueden mejorar su texto y volver a enviarlo.</div>
+  <div class="segmento" style="margin-bottom:16px">
+    <button class="${tab === "pendiente" ? "on" : ""}" data-act="escritosTab" data-t="pendiente">Para revisar (${pend.length})</button>
+    <button class="${tab === "revisado" ? "on" : ""}" data-act="escritosTab" data-t="revisado">Revisados (${rev.length})</button>
+    <button class="${tab === "consignas" ? "on" : ""}" data-act="escritosTab" data-t="consignas">Consignas (${ESC.consignas.length})</button></div>
+  ${lista}`;
+  pintar(shell("escritos", "Escritos", cuerpo));
+}
+
 async function pTemas() {
   const {cfg, temas} = await api("/api/docente/config");
   const areas = [...new Set(temas.map(t => t.area))];
@@ -774,7 +835,11 @@ async function pAjustes() {
       ${sw("mayus_1", "Imprenta mayúscula en 1.º grado", "Los chicos de 1.º ven los textos en MAYÚSCULAS.")}
       ${sw("nivel2_para_1", "Actividades de nivel 2 para 1.º grado", "Útil para chicos de 1.º que ya leen con soltura.")}
       ${sw("nivel3_para_2", "Actividades de nivel 3 para 2.º grado", "Útil para chicos de 2.º que necesitan más desafío.")}
-      ${sw("auto_leer", "Leer en voz alta automáticamente", "Cuentos, preguntas y consignas se leen solos al aparecer.")}
+      ${sw("auto_leer", "Leer en voz alta automáticamente", "Cuentos, preguntas y consignas se leen solos al aparecer. Los chicos siempre pueden tocar 🔊 para escuchar.")}
+      <div class="interruptor" style="flex-direction:column;align-items:stretch;padding-top:0">
+        <div class="t"><small>¿En qué grados? Recomendado: 1.º y 2.º. En 3.º conviene que lean solos, así el juego mide su lectura y no solo la comprensión escuchando.</small></div>
+        <div class="grados-check">${GRADOS.map(x => `<label class="chip-grado"><input type="checkbox" data-act="autoLeerGrado" value="${x}" ${(cfg.auto_leer_grados || []).includes(x) ? "checked" : ""}><span>${x}.º grado</span></label>`).join("")}</div>
+      </div>
       ${sw("voz_lenta", "Voz más lenta", "La lectura en voz alta va más despacio.")}
       ${sw("voz_alegre", "Voz alegre", "La voz habla un poco más aguda y con más ritmo, como cuando se cuenta un cuento. Si la apagás, suena más tranquila.")}
       <div class="interruptor" style="flex-direction:column;align-items:stretch">
@@ -945,6 +1010,20 @@ const A = {
                {lenta: !!sw("voz_lenta"), alegre: sw("voz_alegre") !== false});
   },
   guardarVoz: async () => { await llamar(() => api("/api/docente/config", {method: "PUT", body: {voz: $("#selVoz").value}}), "Voz guardada. Los chicos la van a escuchar en el juego."); },
+  escritosTab: el => { UI.escritosTab = el.dataset.t; pEscritos(); },
+  frase: el => { const t = el.closest("form").devolucion; t.value = (t.value.trim() ? t.value.trim() + " " : "") + el.dataset.t; t.focus(); },
+  editarDevolucion: el => {
+    const e = ESC.escritos.find(x => String(x.id) === el.dataset.id);
+    const art = $("#esc-" + e.id); art.querySelector(".escrito-dev").outerHTML = formDevolucion(e);
+  },
+  borrarConsigna: async el => {
+    if (!await confirmar("Borrar consigna", "Los chicos dejan de verla. Lo que ya escribieron se conserva.", "Borrar", true)) return;
+    if (await llamar(() => api("/api/docente/consignas/" + encodeURIComponent(el.dataset.id), {method: "DELETE"}), "Consigna borrada.")) pEscritos();
+  },
+  autoLeerGrado: async () => {
+    const grados = $$("[data-act=autoLeerGrado]:checked").map(i => +i.value);
+    await llamar(() => api("/api/docente/config", {method: "PUT", body: {auto_leer_grados: grados}}), "Ajuste guardado.");
+  },
   cfg: async el => { await llamar(() => api("/api/docente/config", {method: "PUT", body: {[el.dataset.k]: el.checked}}), "Ajuste guardado."); },
 };
 
@@ -1001,6 +1080,16 @@ const FORM = {
       if (!YO.tiene_codigo) { const r = await api("/api/docente/codigo-recuperacion", {method: "POST"}); YO.tiene_codigo = true; await mostrarCodigo(r.codigo); }
       navegar();
     } catch (e) { $("#err").textContent = e.message; }
+  },
+  devolucion: async (f, d) => {
+    if (!d.estrellas) return toast("Elegí de 1 a 3 estrellas.", true);
+    if (await llamar(() => api(`/api/docente/escritos/${f.dataset.id}/devolucion`, {method: "POST", body: {devolucion: d.devolucion, estrellas: +d.estrellas}}), "Devolución enviada. ¡El chico la va a ver en el juego!")) {
+      if (location.hash.startsWith("#/escritos")) pEscritos(); else navegar();
+    }
+  },
+  consigna: async (f, d) => {
+    try { await api("/api/docente/consignas", {method: "POST", body: d}); toast("Consigna agregada."); pEscritos(); }
+    catch (e) { if (e.status === 401) return llamar(() => Promise.reject(e)); $("#err").textContent = e.message; }
   },
   misGrados: async f => {
     const grados = $$("[name=grados]:checked", f).map(i => +i.value);

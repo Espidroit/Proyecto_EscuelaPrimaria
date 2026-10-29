@@ -111,6 +111,25 @@ CREATE TABLE IF NOT EXISTS observaciones(
     fecha TEXT NOT NULL,
     texto TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS escritos(          -- «Escribo»: textos que escriben los chicos
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    alumno_id INTEGER NOT NULL REFERENCES alumnos(id) ON DELETE CASCADE,
+    consigna_id TEXT NOT NULL,
+    texto TEXT NOT NULL,
+    fecha TEXT NOT NULL,
+    estado TEXT NOT NULL DEFAULT 'pendiente',  -- pendiente / revisado
+    devolucion TEXT,                           -- lo que le escribe la docente
+    estrellas INTEGER,                         -- 1 a 3, las pone la docente
+    revisado_por INTEGER,
+    fecha_revision TEXT,
+    visto INTEGER NOT NULL DEFAULT 0           -- 1 = el chico ya vio la devolución
+);
+CREATE INDEX IF NOT EXISTS idx_escritos_alumno ON escritos(alumno_id, fecha);
+CREATE TABLE IF NOT EXISTS consignas_custom(  -- consignas de escritura que agregan las docentes
+    id TEXT PRIMARY KEY,
+    datos TEXT NOT NULL,
+    creado TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS config(
     clave TEXT PRIMARY KEY,
     valor TEXT NOT NULL
@@ -131,6 +150,7 @@ CONFIG_INICIAL = {
     "nivel2_para_1": False,   # mostrar actividades de nivel 2 a 1.º grado
     "nivel3_para_2": False,   # mostrar actividades de nivel 3 a 2.º grado
     "auto_leer": True,        # leer en voz alta automáticamente
+    "auto_leer_grados": [1, 2],  # en qué grados se lee sola (en 3.º leen solos; tocan 🔊 si necesitan)
     "voz_lenta": False,
     "voz_alegre": True,       # tono alegre: un poco más aguda y con más ritmo
     "sonido": True,
